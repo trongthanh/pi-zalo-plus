@@ -32,7 +32,7 @@ long-polling API.
    The first account to do so is remembered in `~/.pi/agent/zalo.json` and becomes
    the only user allowed to talk to the bot.
 
-   **No pairing?** Run `/zalo open` (or set `"openAccess": true` in zalo.json) to
+   **No pairing?** Run `/zalo open` (or set `"open_access": true` in zalo.json) to
    let **any** Zalo user talk to the bot — no pairing ritual needed. Messages are
    still answered with the current pi session's context.
 
@@ -65,7 +65,7 @@ unpair, reset the update offset so undelivered updates are replayed, or toggle
   context — use only when you control who can find the bot, since anyone may then
   run prompts/commands with the permissions of the pi session.
 - **Steer / queue**: incoming messages while π is working are steered into the
-  running turn by default (`messageMode: "steer"`; set `"queue"` in zalo.json to
+  running turn by default (`message_mode: "steer"`; set `"queue"` in zalo.json to
   chain them instead). `/stop` aborts the current turn.
 - **Dialogs without keyboards**: the Zalo Bot API has no inline keyboards/callback
   queries, so pi's `select` / `confirm` / `input` / `editor` dialogs are rendered as

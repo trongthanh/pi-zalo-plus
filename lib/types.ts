@@ -7,7 +7,8 @@ export const RENDER_LEVELS: readonly ZaloRenderLevel[] = ["hidden", "brief", "fu
 
 /**
  * Persisted extension state. Stored in `~/.pi/agent/zalo.json` (mode 0600)
- * together with the bot token (`bot_token`).
+ * together with the bot token (`bot_token`). Persisted keys are snake_case
+ * (e.g. allowed_user_id, pairing_code); these in-memory fields stay camelCase.
  */
 export type ZaloConfig = {
   zaloToken?: string;
