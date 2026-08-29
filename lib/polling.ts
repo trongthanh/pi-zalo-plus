@@ -178,7 +178,7 @@ async function acquirePollingLock(token: string): Promise<PollLock | undefined> 
   };
 }
 
-export type ZaloUpdateBatchDeps = {
+type ZaloUpdateBatchDeps = {
   getConfig: () => ZaloConfig;
   setConfig: (config: ZaloConfig) => void;
   persistUpdate: (config: ZaloConfig, update: ZaloUpdate) => Promise<void>;
@@ -188,7 +188,7 @@ export type ZaloUpdateBatchDeps = {
 };
 
 /** Process updates in strict order; stop at the first failure so the offset never skips it. */
-export async function processZaloUpdatesBatch(updates: ZaloUpdate[], deps: ZaloUpdateBatchDeps, signal?: AbortSignal): Promise<void> {
+async function processZaloUpdatesBatch(updates: ZaloUpdate[], deps: ZaloUpdateBatchDeps, signal?: AbortSignal): Promise<void> {
   for (const update of updates) {
     if (signal?.aborted || (deps.shouldProcess && !deps.shouldProcess())) return;
     try {
@@ -197,6 +197,9 @@ export async function processZaloUpdatesBatch(updates: ZaloUpdate[], deps: ZaloU
       deps.onError(error);
       return;
     }
+    // Zalo updates carry no update_id (delivery is auto-confirmed) — skip the
+    // offset persist instead of rewriting zalo.json on every message.
+    if (update.update_id === undefined) continue;
     const nextConfig = { ...deps.getConfig(), lastUpdateId: update.update_id };
     try {
       await deps.persistUpdate(nextConfig, update);

@@ -26,7 +26,6 @@ export type ZaloUiRuntime = {
   create(chatId: string, sourceMessageId?: string): ExtensionUIContext;
   resolveInput(chatId: string, value: string | boolean | undefined, replyToMessageId?: string): { handled: boolean; promptMessageId?: string };
   isSensitiveInput(chatId: string, replyToMessageId?: string): boolean;
-  hasPendingInput(chatId: string): boolean;
   dispose(): void;
 };
 
@@ -151,12 +150,7 @@ export function createZaloUiRuntime(deps: {
           );
           const value = await waitInput(chatId, flowId, true, promptMessageId);
           if (typeof value !== "string") return undefined;
-          if (value.trim().toLowerCase() === "cancel") return undefined;
-          if (promptMessageId) {
-            // Best effort: the resolved reply message is deleted by the
-            // controller when isSensitiveInput() was true for it.
-          }
-          return value;
+          return value.trim().toLowerCase() === "cancel" ? undefined : value;
         },
 
         editor: async (title, prefill) => {
@@ -199,7 +193,7 @@ export function createZaloUiRuntime(deps: {
           }
         },
 
-        custom: async <T>(factory: unknown): Promise<T> => {
+        custom: async <T>(_factory: unknown): Promise<T> => {
           // Custom TUI components cannot be rendered in chat. Resolve with a
           // structured cancelled result (pi-goal reads .cancelled/.answers).
           uiLog.debug("custom dialog unsupported on Zalo", { chatId });
@@ -246,7 +240,7 @@ export function createZaloUiRuntime(deps: {
       if (replyToMessageId) {
         flowId = [...map.values()].find((p) => p.promptMessageId === replyToMessageId)?.flowId;
       }
-      flowId ??= raw === undefined ? latestFlowByTarget.get(chatId) : latestFlowByTarget.get(chatId);
+      flowId ??= latestFlowByTarget.get(chatId);
       if (!flowId) return { handled: false };
       const pending = map.get(flowId);
       if (!pending) return { handled: false };
@@ -264,10 +258,6 @@ export function createZaloUiRuntime(deps: {
       }
       const latest = latestFlowByTarget.get(chatId);
       return latest ? map.get(latest)?.sensitive === true : false;
-    },
-
-    hasPendingInput(chatId) {
-      return (pendingByTarget.get(chatId)?.size ?? 0) > 0;
     },
 
     dispose() {

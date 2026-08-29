@@ -30,7 +30,7 @@ function formatThinkingInline(part: Record<string, unknown>, level: ZaloRenderLe
   return `💭 Thinking\n${text}`;
 }
 
-export function contentToRenderParts(
+function contentToRenderParts(
   content: unknown,
   thinkingLevel: ZaloRenderLevel = "brief",
   toolLevel: ZaloRenderLevel = "brief",

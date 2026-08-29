@@ -14,7 +14,7 @@ export type ZaloAuthorizationDecision = {
 export function extractPairingCode(text: string | undefined): string | undefined {
   const trimmed = text?.trim();
   if (!trimmed) return undefined;
-  const match = trimmed.match(/^\/(?:pair|start)(?:@\S+)?\s+([A-Za-z0-9_-]+)\s*$/i);
+  const match = trimmed.match(/^\/(?:pair|start)\s+([A-Za-z0-9_-]+)\s*$/i);
   return match?.[1];
 }
 

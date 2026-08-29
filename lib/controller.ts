@@ -4,10 +4,8 @@
 // into the chat. Port of pi-telegram-plus/lib/controller.ts adapted to Zalo
 // (string IDs, no threads/callback queries, text-based dialogs).
 
-import { mkdir, writeFile } from "node:fs/promises";
-import { extname, resolve } from "node:path";
 import type { ExtensionCommandContext, ExtensionUIContext } from "@earendil-works/pi-coding-agent";
-import { parseLeadingCommand, normalizeLeadingCommand } from "./command-parser.ts";
+import { parseLeadingCommand } from "./command-parser.ts";
 import type { CapturedAgentSession, ZaloIncomingMessage, ZaloMessageMode, ZaloTransport, ZaloTurn } from "./types.ts";
 import type { ZaloUiRuntime } from "./ui.ts";
 import { log } from "./logger.ts";
@@ -17,29 +15,6 @@ import { getCurrentZaloTurn, runWithZaloTurn } from "./turn-context.ts";
 const ctrlLog = log.child("controller");
 
 export type ZaloCommandHandler = (args: string, ctx: ExtensionCommandContext) => Promise<void>;
-
-const QUOTED_TEXT_LIMIT = 1800;
-
-function truncateQuotedText(text: string, max = QUOTED_TEXT_LIMIT): string {
-  return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
-}
-
-function sanitizeIncomingFileName(value: string): string {
-  const trimmed = value.trim().replace(/\.[^./\\]+$/, "");
-  const sanitized = trimmed.replace(/[^a-zA-Z0-9._-]/g, "_").replace(/_+/g, "_");
-  const compact = sanitized.replace(/^\.+/, "").replace(/\.+$/, "");
-  return compact.slice(0, 120) || "attachment";
-}
-
-function inferIncomingExtension(fileName: string | undefined, url: string): string {
-  const fromUrl = url.match(/\.([a-zA-Z0-9]{1,8})(?:[?#]|$)/);
-  if (fromUrl) return `.${fromUrl[1].toLowerCase()}`;
-  if (fileName) {
-    const extension = extname(fileName).toLowerCase();
-    if (extension) return extension;
-  }
-  return ".bin";
-}
 
 type IncomingMedia = {
   kind: string;
@@ -64,15 +39,6 @@ function extractMediaEntries(message: ZaloIncomingMessage): IncomingMedia[] {
     }
   }
   return entries.slice(0, 5);
-}
-
-function formatZaloSender(from: ZaloIncomingMessage["from"]): string | undefined {
-  if (!from) return undefined;
-  const parts: string[] = [];
-  if (from.display_name) parts.push(from.display_name);
-  if (from.id) parts.push(`id:${from.id}`);
-  if (from.is_bot) parts.push("bot");
-  return parts.length > 0 ? parts.join(" ") : undefined;
 }
 
 // ── Routed UI stack (port of the telegram controller UI swap) ────────────────
@@ -406,10 +372,9 @@ export function createZaloController(deps: {
         return;
       }
 
-      const text = normalizeLeadingCommand(rawText, undefined);
-      const trimmed = text.trim();
+      const trimmed = rawText.trim();
 
-      if (trimmed === "/stop" || trimmed === "/stop@") {
+      if (trimmed === "/stop") {
         const cancelResult = deps.ui.resolveInput(chatId, undefined, sourceMessageId);
         const cancelAnyResult = !cancelResult.handled ? deps.ui.resolveInput(chatId, undefined) : cancelResult;
         if (cancelAnyResult.handled) {
@@ -473,7 +438,7 @@ export function createZaloController(deps: {
 
       const hasPromptInput = !!trimmed || mediaEntries.length > 0;
       if (hasPromptInput) {
-        const handled = trimmed ? await tryHandleSlashCommand(text, chatId, sourceMessageId) : false;
+        const handled = trimmed ? await tryHandleSlashCommand(rawText, chatId, sourceMessageId) : false;
         if (!handled) {
           const mediaBlock = mediaEntries.length > 0
             ? `\n\n[zalo attachments]\n${[...downloadedLines, ...failedLines].join("\n")}`
@@ -485,5 +450,3 @@ export function createZaloController(deps: {
     },
   };
 }
-
-export { formatZaloSender, truncateQuotedText };

@@ -17,8 +17,6 @@ const apiLog = log.child("api");
 
 const API_ROOT = `${process.env.PI_ZALO_API_ROOT ?? "https://bot-api.zapps.me/bot"}`;
 
-export const ZALO_MESSAGE_LIMIT = 2000;
-/** Keep headroom below the hard 2000-char server limit. */
 export const ZALO_SAFE_CHUNK = 1900;
 
 export class ZaloApiError extends Error {
@@ -157,23 +155,4 @@ export async function deleteMessage(token: string, chatId: string, messageId: st
 
 export async function sendChatAction(token: string, chatId: string, action: string, signal?: AbortSignal): Promise<void> {
   await apiCall<unknown>(token, "sendChatAction", { chat_id: chatId, action }, { signal });
-}
-
-/**
- * Best-effort photo send. `photo` may be a public URL or a previously
- * uploaded file id — base64 data URIs are rejected here (the caller decides
- * on a fallback). Multipart upload is not part of the documented surface.
- */
-export async function sendPhoto(token: string, params: {
-  chatId: string;
-  photo: string;
-  caption?: string;
-}, signal?: AbortSignal): Promise<SentMessage> {
-  if (params.photo.startsWith("data:")) throw new ZaloApiError("data: URIs are not supported by sendPhoto");
-  const payload: Record<string, unknown> = {
-    chat_id: params.chatId,
-    photo: params.photo,
-    caption: params.caption,
-  };
-  return apiCall<SentMessage>(token, "sendPhoto", payload, { signal });
 }

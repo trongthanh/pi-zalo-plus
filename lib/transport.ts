@@ -8,11 +8,9 @@ import {
   ZALO_SAFE_CHUNK,
   sendChatAction,
   sendMessage,
-  sendPhoto,
-  type SentMessage,
 } from "./zalo-api.ts";
 import { log } from "./logger.ts";
-import type { ZaloSendOptions, ZaloSentMessage, ZaloTransport as ZaloTransportType } from "./types.ts";
+import type { ZaloSentMessage, ZaloTransport as ZaloTransportType } from "./types.ts";
 
 const transportLog = log.child("transport");
 
@@ -20,7 +18,7 @@ const RETRY_COUNT = 2;
 const RETRY_DELAY_MS = 600;
 
 /** Split text into chunks of at most `max` UTF-16 code units, preferring line breaks. */
-export function splitZaloText(text: string, max = ZALO_SAFE_CHUNK): string[] {
+function splitZaloText(text: string, max = ZALO_SAFE_CHUNK): string[] {
   if (text.length <= max) return [text];
   const chunks: string[] = [];
   let rest = text;
@@ -102,22 +100,6 @@ export function createZaloTransport(getToken: () => string | undefined): ZaloTra
         await sendChatAction(token(), chatId, action);
       } catch (error) {
         transportLog.debug("sendChatAction failed (ignored)", { chatId, action, error });
-      }
-    },
-
-    async sendPhoto(chatId, image, caption) {
-      const photo = "url" in image ? image.url : undefined;
-      if (!photo) {
-        transportLog.debug("sendPhoto skipped: only URL sources are supported", { chatId });
-        return false;
-      }
-      try {
-        const sent: SentMessage = await withRetry("sendPhoto", () =>
-          sendPhoto(token(), { chatId, photo, caption }));
-        return !!sent?.message_id;
-      } catch (error) {
-        transportLog.warn("sendPhoto failed", { chatId, error });
-        return false;
       }
     },
   };

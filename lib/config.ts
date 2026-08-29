@@ -64,7 +64,7 @@ export function isZaloEnabled(config: ZaloConfig): boolean {
   return !!config.zaloToken;
 }
 
-export function createPairingCode(): string {
+function createPairingCode(): string {
   return randomInt(0, 1_000_000).toString().padStart(6, "0");
 }
 

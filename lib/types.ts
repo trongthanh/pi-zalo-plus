@@ -4,7 +4,6 @@ export type ZaloRenderLevel = "hidden" | "brief" | "full";
 export type ZaloMessageMode = "queue" | "steer";
 
 export const RENDER_LEVELS: readonly ZaloRenderLevel[] = ["hidden", "brief", "full"] as const;
-export const MODE_VALUES: readonly ZaloMessageMode[] = ["queue", "steer"] as const;
 
 /**
  * Persisted extension state. Stored in `~/.pi/agent/zalo.json`.
@@ -89,8 +88,6 @@ export type ZaloTransport = {
   editText(chatId: string, messageId: string, html: string): Promise<void>;
   deleteMessage(chatId: string, messageId: string): Promise<void>;
   sendChatAction(chatId: string, action: string): Promise<void>;
-  /** Best effort image send. Returns false when the platform path is unavailable. */
-  sendPhoto(chatId: string, image: { url: string } | { data: string; mimeType?: string }, caption?: string): Promise<boolean>;
 };
 
 export type CapturedAgentSession = import("@earendil-works/pi-coding-agent").AgentSession & {
