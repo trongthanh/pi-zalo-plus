@@ -6,8 +6,8 @@ export type ZaloMessageMode = "queue" | "steer";
 export const RENDER_LEVELS: readonly ZaloRenderLevel[] = ["hidden", "brief", "full"] as const;
 
 /**
- * Persisted extension state. Stored in `~/.pi/agent/zalo.json`.
- * The bot token itself lives in `~/.pi/agent/zalo-bot.json` (`{ "bot_token": "..." }`).
+ * Persisted extension state. Stored in `~/.pi/agent/zalo.json` (mode 0600)
+ * together with the bot token (`bot_token`).
  */
 export type ZaloConfig = {
   zaloToken?: string;

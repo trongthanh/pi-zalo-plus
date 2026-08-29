@@ -1,13 +1,13 @@
 // pi-zalo-plus — control the pi coding agent from Zalo.
 //
 // Zalo sibling of pi-telegram-plus, built on the Zalo Bot Platform long-polling
-// API (https://bot.zaloplatforms.com). Token lives in ~/.pi/agent/zalo-bot.json
-// ({ "bot_token": "..." }); state lives in ~/.pi/agent/zalo.json.
+// API (https://bot.zaloplatforms.com). All config lives in
+// ~/.pi/agent/zalo.json — { "bot_token": "...", ...state }.
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { writeFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
-import { ensurePairingCode, isZaloEnabled, readZaloConfig, writeZaloConfig } from "./lib/config.ts";
+import { ensurePairingCode, isZaloEnabled, migrateLegacyTokenFile, readZaloConfig, writeZaloConfig } from "./lib/config.ts";
 import { createZaloController, type ZaloCommandHandler } from "./lib/controller.ts";
 import { initLogger, log } from "./lib/logger.ts";
 import { formatPairingInstructions } from "./lib/pairing.ts";
@@ -420,11 +420,16 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
   pi.on("session_start", async () => {
     try {
       setConfig(await readZaloConfig());
+      const migrated = await migrateLegacyTokenFile(config);
+      if (migrated !== config) {
+        setConfig(migrated);
+        indexLog.info("migrated bot_token from legacy zalo-bot.json into zalo.json (legacy file removed)");
+      }
     } catch (error) {
       indexLog.warn("load zalo config failed", { error });
     }
     if (!config.zaloToken) {
-      indexLog.info("no zalo-bot.json token found — Zalo control disabled");
+      indexLog.info("no bot_token in zalo.json — Zalo control disabled");
       return;
     }
     const paired = ensurePairingCode(config);

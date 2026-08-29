@@ -7,11 +7,15 @@ long-polling API.
 ## Setup
 
 1. Create a bot at [bot.zaloplatforms.com](https://bot.zaloplatforms.com/docs/create-bot/)
-   and save its token to `~/.pi/agent/zalo-bot.json`:
+   and save its token to `~/.pi/agent/zalo.json` (this single file also holds the
+   extension state):
 
    ```json
    { "bot_token": "<YOUR_BOT_TOKEN>" }
    ```
+
+   Migrating from an older install? A legacy `~/.pi/agent/zalo-bot.json` is
+   imported into `zalo.json` on the next start and then removed automatically.
 
 2. Install this extension at `~/.pi/agent/extensions/pi-zalo-plus/` (already in place).
    It loads automatically with pi.
@@ -86,16 +90,16 @@ unpair, reset the update offset so undelivered updates are replayed, or toggle
 
 ## Files
 
-- `~/.pi/agent/zalo-bot.json` — bot token (`bot_token`)
-- `~/.pi/agent/zalo.json` — state: enabled flag, paired user id, pairing code,
-  active chat, last update offset, verbal flag, bot name (mode 0600; the token is never
-  persisted here — it lives only in zalo-bot.json)
+- `~/.pi/agent/zalo.json` — the single config/state file (mode 0600): `bot_token`
+  plus enabled flag, paired user id, pairing code, active chat, last update
+  offset, verbal flag, bot name. The legacy token-only `zalo-bot.json` is
+  migrated here on startup and removed.
 - `~/.pi/agent/logs/pi-zalo-plus-YYYY-MM-DD.log` — JSON-lines log
   (level via `PI_ZALO_PLUS_LOG_LEVEL=debug|info|warn|error`)
 
 ## Troubleshooting
 
-- **401 Unauthorized in logs** → the token in `zalo-bot.json` was regenerated in
+- **401 Unauthorized in logs** → the `bot_token` in `zalo.json` was regenerated in
   the bot console; paste the new token and restart pi.
 - **"Zalo polling skipped: another local pi instance is already polling"** → a
   second pi session is open with the same token. Close it, or remove the stale
@@ -108,7 +112,7 @@ unpair, reset the update offset so undelivered updates are replayed, or toggle
   new token. Verify direction with:
 
   ```bash
-  TOKEN=$(python3 -c "import json;print(json.load(open('~/.pi/agent/zalo-bot.json'))['bot_token'])")
+  TOKEN=$(python3 -c "import json,os;print(json.load(open(os.path.expanduser('~/.pi/agent/zalo.json')))['bot_token'])")
   # outbound (ask the recipient to confirm it lands):
   curl -s -X POST "https://bot-api.zapps.me/bot${TOKEN}/sendMessage" \
     -H 'Content-Type: application/json' \
