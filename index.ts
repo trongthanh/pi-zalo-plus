@@ -116,6 +116,7 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
       `Enabled: ${enabled ? "yes" : "no"}`,
       `Access: ${config.openAccess === true ? "open (any user)" : config.allowedUserId !== undefined ? `paired (${config.allowedUserId})` : `unpaired (code: ${config.pairingCode ?? "n/a"})`}`,
       `Polling: ${polling.isActive() ? "active" : "stopped"}`,
+      `Verbal: ${config.verbal === true ? "on" : "off"}`,
       `Busy: ${activeTurns.size > 0 ? "yes" : "no"}`,
     ].join("\n");
     if (config.activeChatId) {
@@ -133,6 +134,7 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
       "/stop — interrupt the running turn / cancel dialogs",
       "/cancel — cancel a pending dialog",
       "/zalo [status|on|off|pair|unpair|open|locked|reset] — manage the bot",
+      "/zalo verbal=on|off — show/hide thinking + tool calls in chat (default off)",
       "",
       "Any other text is sent to π as a prompt. Slash commands supported by pi and other extensions (e.g. /new, /model, /compact) also work.",
     ].join("\n");
@@ -161,6 +163,7 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
         `Enabled: ${enabled ? "yes" : "no"}`,
         `Access: ${config.openAccess === true ? "open (any user)" : config.allowedUserId !== undefined ? `paired (${config.allowedUserId})` : `unpaired (code: ${config.pairingCode ?? "n/a"})`}`,
         `Polling: ${polling.isActive() ? "active" : "stopped"}`,
+        `Verbal: ${config.verbal === true ? "on" : "off"}`,
         `Busy: ${activeTurns.size > 0 ? "yes" : "no"}`,
         // Strip <> so the line stays valid under Zalo's html parse mode.
         lastStatusError ? `Last error: ${lastStatusError.replace(/[<>]/g, "")}` : "",
@@ -194,7 +197,17 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
       reply("Zalo update offset reset — the next poll replays undelivered updates.");
       return;
     }
-    reply("Usage: /zalo [status|help|on|off|pair|unpair|open|locked|reset]");
+    const verbal = sub.match(/^verbal=(on|off)$/);
+    if (verbal) {
+      await persistConfig({ ...config, verbal: verbal[1] === "on" });
+      reply(
+        verbal[1] === "on"
+          ? "Verbal mode ON — thinking and tool calls now render in chat."
+          : "Verbal mode OFF — chat carries only π's replies.",
+      );
+      return;
+    }
+    reply("Usage: /zalo [status|help|on|off|pair|unpair|open|locked|reset|verbal=on|verbal=off]");
   });
 
   // ── Controller / polling ────────────────────────────────────────────────────
@@ -302,6 +315,7 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
           `Bot: ${config.botName ?? "unknown"}`,
           `Access: ${config.openAccess === true ? "open (any user)" : config.allowedUserId !== undefined ? `paired (${config.allowedUserId})` : `unpaired (pairing code: ${config.pairingCode ?? "n/a"})`}`,
           `Polling: ${polling.isActive() ? "active" : "stopped"}`,
+          `Verbal: ${config.verbal === true ? "on" : "off"}`,
           lastStatusError ? `Last error: ${lastStatusError}` : "",
         ].filter(Boolean);
         ctx.ui.notify?.(lines.join("\n"), "info");
@@ -340,7 +354,18 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
         ctx.ui.notify?.("Zalo update offset reset — the next poll replays undelivered updates.", "info");
         return;
       }
-      ctx.ui.notify?.("Usage: /zalo [status|on|off|pair|unpair|open|locked|reset]", "info");
+      const verbal = sub.match(/^verbal=(on|off)$/);
+      if (verbal) {
+        await persistConfig({ ...config, verbal: verbal[1] === "on" });
+        ctx.ui.notify?.(
+          verbal[1] === "on"
+            ? "Verbal mode ON — thinking and tool calls now render in chat."
+            : "Verbal mode OFF — chat carries only π's replies.",
+          "info",
+        );
+        return;
+      }
+      ctx.ui.notify?.("Usage: /zalo [status|on|off|pair|unpair|open|locked|reset|verbal=on|verbal=off]", "info");
     },
   });
 
@@ -352,6 +377,7 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
     if (config.openAccess === true) flags.push("open");
     else flags.push(config.allowedUserId !== undefined ? "paired" : "unpaired");
     flags.push(polling.isActive() ? "polling" : "idle");
+    flags.push(config.verbal === true ? "verbal" : "quiet");
     if (activeTurns.size > 0) flags.push("busy");
     if (error) flags.push(`error: ${error.slice(0, 60)}`);
     return `Ⓩ ${flags.join(" · ")}`;

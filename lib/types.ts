@@ -31,6 +31,9 @@ export type ZaloConfig = {
   /** How to handle incoming messages while the agent is running:
    *  "steer" — inject into the current turn (default); "queue" — wait. */
   messageMode?: ZaloMessageMode;
+  /** When true, thinking and tool-call lines are rendered in chat (detail via
+   *  the tool/thinking levels). Default false — chat carries only π's replies. */
+  verbal?: boolean;
 };
 
 // ── Zalo Bot API shapes (subset used by this extension) ─────────────────────

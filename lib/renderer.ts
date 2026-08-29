@@ -1,6 +1,7 @@
 // Renderer: pi agent events → Zalo messages. Assistant messages are rendered
 // as Zalo-safe HTML on message_end; tool activity is rendered as brief inline
-// lines. Port of pi-telegram-plus/lib/renderer.ts adapted to Zalo
+// lines only when `verbal` is on (default off = replies only). Port of
+// pi-telegram-plus/lib/renderer.ts adapted to Zalo
 // (no blockquote/expandable, no oversized-code→file, images best-effort).
 
 import { mkdir, writeFile } from "node:fs/promises";
@@ -224,7 +225,9 @@ export function registerZaloRenderer(
   pi.on("tool_execution_start", async (event) => {
     try {
       toolArgs.set(event.toolCallId, event.args);
-      const level = renderLevel(deps.getConfig(), "tool");
+      const config = deps.getConfig();
+      if (config.verbal !== true) return; // quiet mode: no tool lines in chat
+      const level = renderLevel(config, "tool");
       if (level === "hidden") return;
       const inline = level === "brief"
         ? formatToolBrief(event.toolName, event.args)
@@ -239,7 +242,9 @@ export function registerZaloRenderer(
     try {
       const args = toolArgs.get(event.toolCallId);
       toolArgs.delete(event.toolCallId);
-      const level = renderLevel(deps.getConfig(), "tool");
+      const config = deps.getConfig();
+      if (config.verbal !== true) return; // quiet mode: no tool lines in chat
+      const level = renderLevel(config, "tool");
       if (level === "hidden") return;
       if (level === "brief") {
         if (!event.isError) return;
@@ -271,7 +276,9 @@ export function registerZaloRenderer(
       const thinkingLevel = renderLevel(config, "thinking");
       const toolLevel = renderLevel(config, "tool");
       const rendered = contentToRenderParts(message.content, thinkingLevel, toolLevel);
-      await sendInlineEvents(rendered.inlineEvents);
+      // Quiet mode (verbal=false, the default) suppresses thinking/tool lines —
+      // only the assistant's text reply (and image outputs) reach the chat.
+      if (config.verbal === true) await sendInlineEvents(rendered.inlineEvents);
       const body = rendered.body || message.errorMessage || "";
       if (body.trim()) {
         await sendToTurn(markdownToZaloHtml(body));

@@ -47,10 +47,11 @@ also work from chat: unknown commands are forwarded to the session's command reg
 
 ## TUI command
 
-`/zalo [status|on|off|pair|unpair|open|locked|reset]` — manage the bot from the
-terminal: toggle polling, (re)generate the pairing code, **`open`** = skip pairing
-and accept messages from any Zalo account, **`locked`** = require pairing again,
-unpair, or reset the update offset so undelivered updates are replayed.
+`/zalo [status|on|off|pair|unpair|open|locked|reset|verbal=on|verbal=off]` — manage the
+bot from the terminal: toggle polling, (re)generate the pairing code, **`open`** = skip
+pairing and accept messages from any Zalo account, **`locked`** = require pairing again,
+unpair, reset the update offset so undelivered updates are replayed, or toggle
+**`verbal`** (chat shows thinking + tool-call lines when on; default off = replies only).
 
 ## Behavior notes
 
@@ -66,6 +67,10 @@ unpair, or reset the update offset so undelivered updates are replayed.
   queries, so pi's `select` / `confirm` / `input` / `editor` dialogs are rendered as
   text (reply with a number / yes-no / free text; `/cancel` or `cancel` aborts).
   Custom TUI dialogs are not supported over chat and resolve as cancelled.
+- **Verbal mode (default off)**: by default the chat carries only π's text
+  replies — thinking and tool-call lines are suppressed. Toggle with
+  `/zalo verbal=on` / `/zalo verbal=off` (or set `"verbal": true` in zalo.json);
+  when on, detail follows the `tool` / `thinking` render levels.
 - **Output rendering**: assistant markdown is converted to the Zalo-supported HTML
   subset (bold/italic/strike/lists/headings); messages longer than 2000 chars are
   split at line boundaries; thinking and tool calls render as brief lines
@@ -83,7 +88,7 @@ unpair, or reset the update offset so undelivered updates are replayed.
 
 - `~/.pi/agent/zalo-bot.json` — bot token (`bot_token`)
 - `~/.pi/agent/zalo.json` — state: enabled flag, paired user id, pairing code,
-  active chat, last update offset, bot name (mode 0600; the token is never
+  active chat, last update offset, verbal flag, bot name (mode 0600; the token is never
   persisted here — it lives only in zalo-bot.json)
 - `~/.pi/agent/logs/pi-zalo-plus-YYYY-MM-DD.log` — JSON-lines log
   (level via `PI_ZALO_PLUS_LOG_LEVEL=debug|info|warn|error`)
