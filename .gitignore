@@ -1,0 +1,16 @@
+# node_modules (incl. .dev typecheck deps)
+node_modules/
+.dev/node_modules/
+
+# logs
+*.log
+~/.pi/agent/logs/
+
+# OS / editor
+.DS_Store
+*.swp
+
+# local bot state (never commit tokens / pairing state)
+zalo-bot.json
+zalo.json
+*.lock
