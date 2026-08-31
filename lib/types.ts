@@ -35,6 +35,10 @@ export type ZaloConfig = {
   /** When true, thinking and tool-call lines are rendered in chat (detail via
    *  the tool/thinking levels). Default false — chat carries only π's replies. */
   verbal?: boolean;
+  /** Directory incoming attachments are downloaded into. Supports `~` and
+   *  relative paths (resolved against the pi agent dir). Default: the active
+   *  session's working directory. */
+  downloadDir?: string;
 };
 
 // ── Zalo Bot API shapes (subset used by this extension) ─────────────────────

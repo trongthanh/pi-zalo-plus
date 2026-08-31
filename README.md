@@ -57,6 +57,7 @@ Full example with every key (copy only what you need):
   "verbal": false,
   "tool": "brief",
   "thinking": "brief",
+  "download_dir": "~/.pi/agent/attachments",
 
   "pairing_code": "625967",
   "active_chat_id": "ab19c1b361fa88a4d1eb",
@@ -76,6 +77,7 @@ Full example with every key (copy only what you need):
 | `verbal` | boolean | `false` | `true` = thinking + tool-call lines render in chat; `false` = only π's replies. Toggled with `/zalo verbal=on` / `/zalo verbal=off`. |
 | `tool` | `"hidden"` \| `"brief"` \| `"full"` | `"brief"` | Detail level for tool-execution lines in chat (visible only when `verbal` is `true`). |
 | `thinking` | `"hidden"` \| `"brief"` \| `"full"` | `"brief"` | Detail level for thinking blocks in chat (visible only when `verbal` is `true`). |
+| `download_dir` | string | working directory | Directory incoming attachments are downloaded into. Supports `~` expansion; relative paths resolve against `~/.pi/agent`. Useful to keep large/temporary attachments out of synced folders. |
 | `bot_name` | string | auto | Bot display name, resolved once via `getMe` on first start. Informational only — shown in `/status`. |
 
 ### State keys (managed by the extension)
@@ -144,8 +146,9 @@ unpair, reset the update offset so undelivered updates are replayed, or toggle
 - **Single poller**: a cross-process lock (`~/.pi/agent/zalo-poll-*.lock`) ensures
   only one pi instance polls the bot; the 408 "Request timeout" response is treated
   as a normal empty poll.
-- **Files**: image/file attachments sent to the bot are downloaded into the working
-  directory and their paths are appended to the prompt. Base64 image outputs from π
+- **Files**: image/file attachments sent to the bot are downloaded into the
+  directory configured by `download_dir` (default: the working directory) and
+  their paths are appended to the prompt. Base64 image outputs from π
   are saved under `.pi-zalo-images/` in the working directory (Zalo `sendPhoto`
   accepts URLs only).
 

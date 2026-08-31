@@ -6,8 +6,9 @@
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { writeFile, mkdir } from "node:fs/promises";
-import { resolve } from "node:path";
-import { ensurePairingCode, isZaloEnabled, migrateLegacyTokenFile, readZaloConfig, writeZaloConfig } from "./lib/config.ts";
+import { homedir } from "node:os";
+import { join, resolve } from "node:path";
+import { ensurePairingCode, getAgentDir, isZaloEnabled, migrateLegacyTokenFile, readZaloConfig, writeZaloConfig } from "./lib/config.ts";
 import { createZaloController, type ZaloCommandHandler } from "./lib/controller.ts";
 import { initLogger, log } from "./lib/logger.ts";
 import { formatPairingInstructions } from "./lib/pairing.ts";
@@ -81,19 +82,67 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
     return session?.extensionRunner?.createCommandContext?.().cwd ?? process.cwd();
   };
 
+  /** Incoming-attachment target directory: `download_dir` from zalo.json when
+   *  set (expands `~`; relative paths resolve against the pi agent dir), else
+   *  the active session's working directory (legacy behaviour). */
+  const resolveDownloadDir = (): string => {
+    const configured = config.downloadDir?.trim();
+    if (!configured) return sessionCwd();
+    const expanded = configured === "~" || configured.startsWith("~/")
+      ? join(homedir(), configured.slice(1))
+      : configured;
+    return resolve(expanded.startsWith("/") ? expanded : join(getAgentDir(), expanded));
+  };
+
   const downloadIncomingAttachment = async (media: { kind: string; url: string; fileName?: string }): Promise<string> => {
-    const response = await fetch(media.url);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const buffer = Buffer.from(await response.arrayBuffer());
-    await mkdir(sessionCwd(), { recursive: true });
+    const downloadDir = resolveDownloadDir();
+    await mkdir(downloadDir, { recursive: true });
     const base = (media.fileName ?? `${media.kind}-${Date.now()}`)
       .replace(/[^a-zA-Z0-9._-]/g, "_")
       .slice(0, 100);
     const extMatch = media.url.match(/\.([a-zA-Z0-9]{1,8})(?:[?#]|$)/);
     const name = extMatch && !base.includes(".") ? `${base}.${extMatch[1]}` : base;
-    const outputPath = resolve(sessionCwd(), `${Date.now()}-${name}`);
-    await writeFile(outputPath, buffer);
-    return outputPath;
+    const outputPath = resolve(downloadDir, `${Date.now()}-${name}`);
+
+    // Zalo CDN (photo-stal-*.zdn.vn) intermittently answers 200 with an empty
+    // body (cold/unsynced edge node). Validate the payload and retry with
+    // backoff instead of writing 0-byte files.
+    const fetchOnce = async (): Promise<Buffer> => {
+      const response = await fetch(media.url, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+          Referer: "https://zzz3.zdn.vn/",
+          Accept: "image/*,application/octet-stream,*/*;q=0.8",
+        },
+        redirect: "follow",
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const expected = Number(response.headers.get("content-length") ?? 0);
+      if (buffer.length === 0) throw new Error("empty body (0 bytes)");
+      if (expected > 0 && buffer.length !== expected) {
+        throw new Error(`truncated body (${buffer.length}/${expected} bytes)`);
+      }
+      return buffer;
+    };
+
+    let lastError: unknown = new Error("download failed");
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const buffer = await fetchOnce();
+        await writeFile(outputPath, buffer);
+        return outputPath;
+      } catch (error) {
+        lastError = error;
+        indexLog.warn(`attachment download attempt ${attempt}/3 failed`, {
+          url: media.url,
+          reason: error instanceof Error ? error.message : String(error),
+        });
+        if (attempt < 3) await new Promise((r) => setTimeout(r, 600 * attempt));
+      }
+    }
+    throw lastError;
   };
 
   const transport = createZaloTransport(() => config.zaloToken);
@@ -117,6 +166,7 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
       `Access: ${config.openAccess === true ? "open (any user)" : config.allowedUserId !== undefined ? `paired (${config.allowedUserId})` : `unpaired (code: ${config.pairingCode ?? "n/a"})`}`,
       `Polling: ${polling.isActive() ? "active" : "stopped"}`,
       `Verbal: ${config.verbal === true ? "on" : "off"}`,
+      `Attachments: ${resolveDownloadDir()}`,
       `Busy: ${activeTurns.size > 0 ? "yes" : "no"}`,
     ].join("\n");
     if (config.activeChatId) {

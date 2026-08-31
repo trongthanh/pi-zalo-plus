@@ -46,6 +46,7 @@ const FIELD_TO_STATE_KEY: Record<string, string> = {
   tool: "tool",
   thinking: "thinking",
   verbal: "verbal",
+  downloadDir: "download_dir",
 };
 
 /** Persisted snake_case key → config field (canonical keys only). */
