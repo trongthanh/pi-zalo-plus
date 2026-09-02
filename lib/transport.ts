@@ -5,10 +5,10 @@
 import {
   deleteMessage,
   editMessageText,
-  ZALO_SAFE_CHUNK,
   sendChatAction,
   sendMessage,
 } from "./zalo-api.ts";
+import { splitZaloText } from "./text-split.ts";
 import { log } from "./logger.ts";
 import type { ZaloSentMessage, ZaloTransport as ZaloTransportType } from "./types.ts";
 
@@ -16,24 +16,6 @@ const transportLog = log.child("transport");
 
 const RETRY_COUNT = 2;
 const RETRY_DELAY_MS = 600;
-
-/** Split text into chunks of at most `max` UTF-16 code units, preferring line breaks. */
-function splitZaloText(text: string, max = ZALO_SAFE_CHUNK): string[] {
-  if (text.length <= max) return [text];
-  const chunks: string[] = [];
-  let rest = text;
-  while (rest.length > max) {
-    let cut = rest.lastIndexOf("\n", max);
-    if (cut < max * 0.3) {
-      cut = rest.lastIndexOf(" ", max);
-      if (cut < max * 0.3) cut = max;
-    }
-    chunks.push(rest.slice(0, cut));
-    rest = rest.slice(cut).replace(/^\n+/, "");
-  }
-  if (rest) chunks.push(rest);
-  return chunks;
-}
 
 async function withRetry<T>(label: string, run: () => Promise<T>): Promise<T> {
   let lastError: unknown;

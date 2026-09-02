@@ -1,5 +1,5 @@
 // Compatibility helpers for reaching into pi runtime internals.
-// Compact port of pi-telegram-plus/lib/pi-compat.ts (subset used here).
+// Adapted from pi-telegram-plus/lib/pi-compat.ts (Zalo-specific subset).
 
 export type PiExtensionMode = "tui" | "rpc" | "json" | "print" | string;
 

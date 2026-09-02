@@ -1,4 +1,4 @@
-// AsyncLocalStorage-based turn context, mirroring pi-telegram-plus.
+// AsyncLocalStorage-based turn context, adapted from pi-telegram-plus.
 
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { ZaloTurn } from "./types.ts";

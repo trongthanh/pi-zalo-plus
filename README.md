@@ -1,8 +1,64 @@
 # pi-zalo-plus
 
-Control the [pi coding agent](https://pi.dev) from **Zalo** — the Zalo sibling of
-`pi-telegram-plus`, built on the [Zalo Bot Platform](https://bot.zaloplatforms.com)
-long-polling API.
+## Overview
+
+**Full Zalo control of [pi coding agent](https://github.com/earendil-works/pi-coding-agent) — commands, interactive UI, model/session management, file transfer, and real-time streaming output, all from Zalo.**
+
+`pi-zalo-plus` is a pi extension that turns Zalo into a full-featured remote control surface for the pi coding agent. It mirrors the core pi TUI experience into Zalo chat, with interactive menus, file attachments, live agent output rendering, and safe single-user pairing. Built on the [Zalo Bot Platform](https://bot.zaloplatforms.com) long-polling API.
+
+---
+
+## Project Structure
+
+```
+pi-zalo-plus/
+├── index.ts                     # Extension entry point
+├── package.json
+├── tsconfig.json
+├── vitest.config.ts
+├── pi-host.d.ts                 # Type augmentation
+├── scripts/
+│   └── test-routed-ui-spread.mjs  # Routed UI proxy regression test
+├── .pi/
+│   └── settings.json            # pi package registration
+└── lib/
+    ├── types.ts                 # All TypeScript interfaces & types
+    ├── zalo-api.ts              # Zalo Bot HTTP API client
+    ├── polling.ts               # Long polling with multi-instance lock
+    ├── controller.ts            # Message router & prompt executor
+    ├── ui.ts                    # Interactive UI (notify, confirm, input, select)
+    ├── renderer.ts              # Agent event → Zalo output renderer
+    ├── markdown.ts              # Markdown → Zalo HTML converter
+    ├── html.ts                  # HTML escaping utilities
+    ├── text-split.ts            # UTF-8-safe text splitter
+    ├── command-parser.ts        # Slash command parser
+    ├── config.ts                # Configuration store
+    ├── transport.ts             # Zalo API transport with retry & chunking
+    ├── pairing.ts               # Bot pairing/authorization
+    ├── attachments.ts           # Incoming file attachment downloader
+    ├── heartbeat.ts             # Typing indicator pulse
+    ├── status.ts                # TUI status line formatter
+    ├── logger.ts                # File-based JSON Lines logger with rotation
+    ├── session-capture.ts       # Agent session capture & handler patching
+    ├── pi-compat.ts             # Pi runtime compatibility helpers
+    ├── turn-context.ts          # AsyncLocalStorage turn context
+    ├── commands/
+    │   ├── register.ts          # Command registry aggregator
+    │   ├── zalo.ts              # /zalo command (TUI + chat)
+    │   ├── status.ts            # /status command
+    │   ├── help.ts              # /help command
+    │   ├── lifecycle.ts         # /compact, /reload, /stop, /quit
+    │   ├── session.ts           # /new, /fork, /clone, /tree, /resume, /cd, /cwd, /name
+    │   ├── settings.ts          # /settings menu
+    │   └── zalo-config.ts       # /zalo-config
+    └── __tests__/
+        ├── _setup.ts
+        ├── html.test.ts
+        ├── text-split.test.ts
+        ├── markdown.test.ts
+        ├── config.test.ts
+        └── command-parser.test.ts
+```
 
 ## Setup
 

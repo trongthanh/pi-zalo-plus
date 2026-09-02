@@ -7,7 +7,7 @@
 //   bot look deaf. Override via PI_ZALO_API_ROOT if the platform moves again.
 // - Long polling returns `{ ok: false, error_code: 408, description: "Request timeout" }`
 //   when no updates arrive within `timeout` seconds — that is a normal empty poll.
-// - getUpdates accepts Telegram-style `{ timeout, offset, limit }`.
+// - getUpdates accepts `{ timeout, offset, limit }` (shared Telegram-style params).
 // - sendMessage limit is 2000 chars (UTF-16 code units); we split before calling.
 
 import { log } from "./logger.ts";
@@ -87,7 +87,7 @@ export type GetUpdatesParams = {
 };
 
 /** Long-poll updates. Empty polls (408) resolve to [].
- *  The Zalo API returns a SINGLE update object (not a Telegram-style array) and
+ *  The Zalo API returns a SINGLE update object (not an array) and
  *  no update_id — delivery is auto-confirmed once returned. */
 export async function getUpdates(
   token: string,

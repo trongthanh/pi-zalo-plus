@@ -1,6 +1,6 @@
 // Active-session capture via AgentSession.prototype.bindExtensions patch.
 // State lives on globalThis (Symbol) so /reload keeps the binding stable.
-// Mirrors pi-telegram-plus/lib/session-capture.ts.
+// Zalo adaptation of pi-telegram-plus/lib/session-capture.ts.
 
 import { AgentSession } from "@earendil-works/pi-coding-agent";
 import type { CapturedAgentSession } from "./types.ts";

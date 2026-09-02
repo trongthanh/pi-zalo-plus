@@ -1,13 +1,14 @@
 // Zalo controller: turns incoming Zalo messages into pi prompts / commands,
 // with pairing, per-chat turn ownership, steer/queue prompt routing, and a
 // routed UI context so pi dialogs raised by Zalo-triggered turns render back
-// into the chat. Port of pi-telegram-plus/lib/controller.ts adapted to Zalo
+// into the chat. Adapted from pi-telegram-plus/lib/controller.ts for Zalo
 // (string IDs, no threads/callback queries, text-based dialogs).
 
 import type { ExtensionCommandContext, ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import { parseLeadingCommand } from "./command-parser.ts";
 import type { CapturedAgentSession, ZaloIncomingMessage, ZaloMessageMode, ZaloTransport, ZaloTurn } from "./types.ts";
 import type { ZaloUiRuntime } from "./ui.ts";
+import { extractMediaEntries, type IncomingMedia } from "./attachments.ts";
 import { log } from "./logger.ts";
 import { commandErrorMessage, getRunnerMode, setRunnerUiContext, ZALO_EXTENSION_MODE } from "./pi-compat.ts";
 import { getCurrentZaloTurn, runWithZaloTurn } from "./turn-context.ts";
@@ -16,40 +17,7 @@ const ctrlLog = log.child("controller");
 
 export type ZaloCommandHandler = (args: string, ctx: ExtensionCommandContext) => Promise<void>;
 
-type IncomingMedia = {
-  kind: string;
-  url: string;
-  fileName?: string;
-};
-
-function extractMediaEntries(message: ZaloIncomingMessage): IncomingMedia[] {
-  const entries: IncomingMedia[] = [];
-  if (typeof message.photo_url === "string" && message.photo_url.startsWith("http")) {
-    entries.push({ kind: "photo", url: message.photo_url });
-  }
-  if (Array.isArray(message.attachments)) {
-    for (const attachment of message.attachments) {
-      if (!attachment || typeof attachment !== "object") continue;
-      const url = [attachment.photo_url, attachment.url, attachment.file_url, attachment.image_url]
-        .find((v): v is string => typeof v === "string" && v.startsWith("http"));
-      if (!url) continue;
-      const kind = typeof attachment.type === "string" ? attachment.type : "file";
-      const name = typeof attachment.name === "string" ? attachment.name : undefined;
-      entries.push({ kind, url, fileName: name });
-    }
-  }
-  // Stickers (event message.sticker.received) have no documented payload; the
-  // reference may arrive as sticker_url, photo_url, a bare sticker id, or — as
-  // observed live — a direct download URL in `url` (zalo-api.zadn.vn PNG).
-  if (entries.length === 0) {
-    const url = [message.url, message.sticker_url, message.photo_url, message.sticker]
-      .find((v): v is string => typeof v === "string" && /^https?:\/\//i.test(v));
-    if (url) entries.push({ kind: "sticker", url });
-  }
-  return entries.slice(0, 5);
-}
-
-// ── Routed UI stack (port of the telegram controller UI swap) ────────────────
+// ── Routed UI stack (adapted from pi-telegram-plus controller UI swap) ────────
 
 type ZaloUiStackEntry = {
   turn: ZaloTurn;

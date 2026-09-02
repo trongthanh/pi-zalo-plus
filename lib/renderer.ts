@@ -1,7 +1,7 @@
 // Renderer: pi agent events → Zalo messages. Assistant messages are rendered
 // as Zalo-safe HTML on message_end; tool activity is rendered as brief inline
-// lines only when `verbal` is on (default off = replies only). Port of
-// pi-telegram-plus/lib/renderer.ts adapted to Zalo
+// lines only when `verbal` is on (default off = replies only). Adapted from
+// pi-telegram-plus/lib/renderer.ts for Zalo
 // (no blockquote/expandable, no oversized-code→file, images best-effort).
 
 import { mkdir, writeFile } from "node:fs/promises";

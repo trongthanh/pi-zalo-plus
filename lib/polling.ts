@@ -1,6 +1,6 @@
 // Long-polling runtime for the Zalo bot, with a cross-process poll lock so
-// only one pi instance polls a given token at a time. Compact port of
-// pi-telegram-plus/lib/polling.ts adapted to the Zalo API (408 = empty poll).
+// only one pi instance polls a given token at a time. Adapted from
+// pi-telegram-plus/lib/polling.ts for the Zalo API (408 = empty poll).
 
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";

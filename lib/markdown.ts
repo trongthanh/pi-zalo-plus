@@ -1,20 +1,12 @@
 // Markdown → Zalo-safe HTML conversion.
 //
 // Zalo's `parse_mode: "html"` supports a small tag set (b/strong, i/em, u,
-// s/del/strike, h1-h6, ul/ol/li, p, div, style). Unknown tags are stripped but
-// keep their inner text, so worst case formatting degrades gracefully. We emit
-// only supported tags and escape everything else, including code blocks
-// (rendered as preformatted plain text lines).
+// s/del/strike, h1-h6, ul/ol/li, p, div). Unknown tags are stripped but keep
+// their inner text, so worst case formatting degrades gracefully. We emit only
+// supported tags and escape everything else, including code blocks (rendered
+// as preformatted plain text lines).
 
-const ESCAPED: Record<string, string> = {
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-};
-
-function escapeHtml(text: string): string {
-  return text.replace(/[&<>]/g, (ch) => ESCAPED[ch] ?? ch);
-}
+import { escapeHtml } from "./html.ts";
 
 type Extracted = { text: string; restore: (input: string) => string };
 
