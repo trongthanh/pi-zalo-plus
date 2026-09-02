@@ -11,8 +11,9 @@ describe("splitZaloText", () => {
     const text = "A".repeat(500) + "\n" + "B".repeat(500);
     // With a max of 600, should cut after the newline
     const result = splitZaloText(text, 600);
-    expect(result.length).toBeGreaterThanOrEqual(1);
-    expect(result.join("").replace(/\n+/g, "\n").replace(/^\n+/, "")).toBe(text);
+    expect(result.length).toBe(2);
+    expect(result[0]).toBe("A".repeat(500));
+    expect(result[1]).toBe("B".repeat(500));
   });
 
   it("handles empty text", () => {

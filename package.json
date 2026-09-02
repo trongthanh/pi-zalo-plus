@@ -4,17 +4,17 @@
   "version": "0.0.1",
   "description": "Full Zalo control of pi coding agent — commands, interactive UI, model/session management, file transfer, and real-time streaming output, all from Zalo",
   "keywords": [
-    "pi-package",
-    "pi-extension",
-    "zalo",
     "coding-agent",
-    "remote-control"
+    "pi-extension",
+    "pi-package",
+    "remote-control",
+    "zalo"
   ],
   "license": "MIT",
-  "author": "trongthanh",
-  "type": "module",
-  "engines": {
-    "node": ">=22.19.0"
+  "author": "Thanh Tran (https://thanh.im)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/trongthanh/pi-zalo-plus"
   },
   "files": [
     "index.ts",
@@ -22,11 +22,25 @@
     "!lib/__tests__/",
     "pi-host.d.ts"
   ],
+  "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepublishOnly": "npm test && npm run typecheck"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.8"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": ">=0.76.0 <0.82.0",
+    "typebox": "*"
+  },
+  "engines": {
+    "node": ">=22.19.0"
   },
   "pi": {
     "extensions": [
@@ -34,19 +48,5 @@
     ],
     "image": "",
     "video": ""
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/trongthanh/pi-zalo-plus"
-  },
-  "peerDependencies": {
-    "@earendil-works/pi-coding-agent": ">=0.76.0 <0.82.0",
-    "typebox": "*"
-  },
-  "dependencies": {},
-  "devDependencies": {
-    "@types/node": "^22.0.0",
-    "typescript": "^7.0.2",
-    "vitest": "^4.1.8"
   }
 }

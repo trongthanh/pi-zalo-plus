@@ -3,7 +3,6 @@ node_modules/
 
 # logs
 *.log
-~/.pi/agent/logs/
 
 # OS / editor
 .DS_Store
