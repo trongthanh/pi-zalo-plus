@@ -65,6 +65,8 @@ export type ZaloIncomingMessage = {
   /** Sticker reference — exact shape is undocumented; may be an id or a URL. */
   sticker?: string;
   sticker_url?: string;
+  /** Observed on sticker events: direct download URL (zalo-api.zadn.vn PNG). */
+  url?: string;
   attachments?: Array<Record<string, unknown>>;
 };
 

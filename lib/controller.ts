@@ -39,10 +39,10 @@ function extractMediaEntries(message: ZaloIncomingMessage): IncomingMedia[] {
     }
   }
   // Stickers (event message.sticker.received) have no documented payload; the
-  // reference may arrive as sticker_url, photo_url or a bare sticker id. If we
-  // have no media yet, probe the known fields for a direct URL we can download.
+  // reference may arrive as sticker_url, photo_url, a bare sticker id, or — as
+  // observed live — a direct download URL in `url` (zalo-api.zadn.vn PNG).
   if (entries.length === 0) {
-    const url = [message.sticker_url, message.photo_url, message.sticker]
+    const url = [message.url, message.sticker_url, message.photo_url, message.sticker]
       .find((v): v is string => typeof v === "string" && /^https?:\/\//i.test(v));
     if (url) entries.push({ kind: "sticker", url });
   }
