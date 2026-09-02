@@ -38,6 +38,14 @@ function extractMediaEntries(message: ZaloIncomingMessage): IncomingMedia[] {
       entries.push({ kind, url, fileName: name });
     }
   }
+  // Stickers (event message.sticker.received) have no documented payload; the
+  // reference may arrive as sticker_url, photo_url or a bare sticker id. If we
+  // have no media yet, probe the known fields for a direct URL we can download.
+  if (entries.length === 0) {
+    const url = [message.sticker_url, message.photo_url, message.sticker]
+      .find((v): v is string => typeof v === "string" && /^https?:\/\//i.test(v));
+    if (url) entries.push({ kind: "sticker", url });
+  }
   return entries.slice(0, 5);
 }
 
@@ -166,7 +174,7 @@ export function createZaloController(deps: {
   onTurnActivity?: () => void;
   downloadIncomingAttachment?: (media: IncomingMedia) => Promise<string>;
 }): {
-  handleMessage(message: ZaloIncomingMessage): Promise<void>;
+  handleMessage(message: ZaloIncomingMessage, eventName?: string): Promise<void>;
 } {
   // Per-chat prompt queues (queue mode chains per chat).
   const promptTails = new Map<string, Promise<void>>();
@@ -358,7 +366,7 @@ export function createZaloController(deps: {
   };
 
   return {
-    async handleMessage(message) {
+    async handleMessage(message, eventName) {
       const chatId = message.chat?.id;
       if (!chatId) return;
       const sourceMessageId = message.message_id;
@@ -436,15 +444,22 @@ export function createZaloController(deps: {
         }
       }
 
-      const hasPromptInput = !!trimmed || mediaEntries.length > 0;
+      const hasPromptInput = !!trimmed || mediaEntries.length > 0 || eventName === "message.sticker.received";
       if (hasPromptInput) {
         const handled = trimmed ? await tryHandleSlashCommand(rawText, chatId, sourceMessageId) : false;
         if (!handled) {
           const mediaBlock = mediaEntries.length > 0
             ? `\n\n[zalo attachments]\n${[...downloadedLines, ...failedLines].join("\n")}`
             : "";
-          const promptText = `${trimmed}${mediaBlock}`.trim();
-          await submitText(promptText, chatId, sourceMessageId);
+          let promptText = `${trimmed}${mediaBlock}`.trim();
+          if (!promptText && eventName === "message.sticker.received") {
+            // Sticker with no downloadable URL — still surface it so the agent
+            // knows one arrived instead of silently dropping it.
+            const ref = typeof message.sticker_url === "string" ? message.sticker_url
+              : typeof message.sticker === "string" ? message.sticker : "unknown";
+            promptText = `[zalo sticker] (no caption; sticker ref: ${ref})`;
+          }
+          if (promptText) await submitText(promptText, chatId, sourceMessageId);
         }
       }
     },

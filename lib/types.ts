@@ -62,6 +62,9 @@ export type ZaloIncomingMessage = {
   from?: ZaloUser;
   date?: number;
   photo_url?: string;
+  /** Sticker reference — exact shape is undocumented; may be an id or a URL. */
+  sticker?: string;
+  sticker_url?: string;
   attachments?: Array<Record<string, unknown>>;
 };
 

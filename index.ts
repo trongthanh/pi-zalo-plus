@@ -313,6 +313,7 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
     shouldPoll: () => !disposed && !!config.zaloToken && isZaloEnabled(config),
     shouldProcess: () => !disposed,
     handleUpdate: async (update) => {
+      const hasText = !!update.message?.text;
       indexLog.info("update received", {
         eventName: update.event_name,
         updateId: update.update_id,
@@ -320,10 +321,13 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
         from: update.message?.from?.id,
         fromName: update.message?.from?.display_name,
         text: update.message?.text?.slice(0, 80),
+        // Non-text events (sticker, unsupported, …) have undocumented shapes —
+        // log the raw payload (bounded) so we can adapt field handling.
+        raw: hasText ? undefined : JSON.stringify(update.message ?? update).slice(0, 500),
       });
       refreshStatus();
       if (isDuplicateUpdate(update)) return;
-      if (update.message) await controller.handleMessage(update.message);
+      if (update.message) await controller.handleMessage(update.message, update.event_name);
       lastStatusError = undefined;
       refreshStatus();
     },
