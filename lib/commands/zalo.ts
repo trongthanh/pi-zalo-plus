@@ -1,16 +1,13 @@
 // /zalo command handlers — manage the Zalo bot from the pi TUI.
 //
 // Zalo-specific bot management commands: on/off, pair/unpair, open/locked,
-// reset, verbal=on/off, and status. Pattern adapted from
+// reset, and status. Pattern adapted from
 // pi-telegram-plus/lib/commands/telegram-commands.ts.
 
 import type { CommandRegistry, SessionDeps, ZaloConfigDeps } from "./register.ts";
 import type { ZaloConfig } from "../types.ts";
 import { ensurePairingCode, isZaloEnabled } from "../config.ts";
 import { formatPairingInstructions } from "../pairing.ts";
-import { log } from "../logger.ts";
-
-const cmdLog = log.child("cmd.zalo");
 
 /**
  * Register TUI /zalo command and chat-native zalo command handler.
@@ -21,12 +18,12 @@ const cmdLog = log.child("cmd.zalo");
  */
 export function registerZaloCommands(
   registry: CommandRegistry,
-  sessionDeps: SessionDeps,
+  _sessionDeps: SessionDeps,
   configDeps?: ZaloConfigDeps,
 ): void {
   registry.registerCommand("zalo", {
-    description: "Zalo bot: status, pair/unpair, on/off, verbal mode, config",
-    handler: async (args, ctx) => {
+    description: "Zalo bot: status, pair/unpair, on/off, reset",
+    handler: async (args: string, ctx: any) => {
       const ui = ctx.ui;
       if (!configDeps) {
         ui.notify("Zalo config not available", "error");
@@ -42,8 +39,9 @@ export function registerZaloCommands(
           `Zalo bot: ${enabled ? "enabled" : "disabled"}`,
           `Bot: ${config.botName ?? "unknown"}`,
           `Access: ${config.openAccess === true ? "open (any user)" : config.allowedUserId !== undefined ? `paired (${config.allowedUserId})` : `unpaired (pairing code: ${config.pairingCode ?? "n/a"})`}`,
-          `Verbal: ${config.verbal === true ? "on" : "off"}`,
           `Message mode: ${config.messageMode ?? "steer"}`,
+          `Tool render: ${config.tool ?? "brief"}`,
+          `Thinking render: ${config.thinking ?? "brief"}`,
         ].filter(Boolean);
         ui.notify(lines.join("\n"), "info");
         return;
@@ -81,18 +79,7 @@ export function registerZaloCommands(
         ui.notify("Zalo update offset reset — the next poll replays undelivered updates.", "info");
         return;
       }
-      const verbal = sub.match(/^verbal=(on|off)$/);
-      if (verbal) {
-        await persistConfig({ ...config, verbal: verbal[1] === "on" });
-        ui.notify(
-          verbal[1] === "on"
-            ? "Verbal mode ON — thinking and tool calls now render in chat."
-            : "Verbal mode OFF — chat carries only π's replies.",
-          "info",
-        );
-        return;
-      }
-      ui.notify("Usage: /zalo [status|on|off|pair|unpair|open|locked|reset|verbal=on|verbal=off]", "info");
+      ui.notify("Usage: /zalo [status|on|off|pair|unpair|open|locked|reset]", "info");
     },
   });
 }
@@ -101,7 +88,7 @@ export function registerZaloCommands(
 export function buildChatZaloCommandHandler(
   getConfig: () => ZaloConfig,
   persistConfig: (config: ZaloConfig) => Promise<void>,
-  getActiveChatId: () => string | undefined,
+  _getActiveChatId: () => string | undefined,
   sendReply: (text: string) => void,
 ): (args: string) => Promise<void> {
   return async (args) => {
@@ -116,7 +103,6 @@ export function buildChatZaloCommandHandler(
         `Bot: ${config.botName ?? "unknown"}`,
         `Enabled: ${enabled ? "yes" : "no"}`,
         `Access: ${config.openAccess === true ? "open (any user)" : config.allowedUserId !== undefined ? `paired (${config.allowedUserId})` : `unpaired (code: ${config.pairingCode ?? "n/a"})`}`,
-        `Verbal: ${config.verbal === true ? "on" : "off"}`,
       ].filter(Boolean).join("\n"));
       return;
     }
@@ -147,16 +133,6 @@ export function buildChatZaloCommandHandler(
       reply("Zalo update offset reset — the next poll replays undelivered updates.");
       return;
     }
-    const verbal = sub.match(/^verbal=(on|off)$/);
-    if (verbal) {
-      await persistConfig({ ...config, verbal: verbal[1] === "on" });
-      reply(
-        verbal[1] === "on"
-          ? "Verbal mode ON — thinking and tool calls now render in chat."
-          : "Verbal mode OFF — chat carries only π's replies.",
-      );
-      return;
-    }
-    reply("Usage: /zalo [status|help|on|off|pair|unpair|open|locked|reset|verbal=on|verbal=off]");
+    reply("Usage: /zalo [status|help|on|off|pair|unpair|open|locked|reset]");
   };
 }

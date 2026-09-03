@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { isZaloEnabled, ensurePairingCode } from "../config.ts";
-import type { ZaloConfig } from "../types.ts";
 
 describe("isZaloEnabled", () => {
   it("returns false when no token", () => {

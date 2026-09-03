@@ -4,9 +4,9 @@
 // into the chat. Adapted from pi-telegram-plus/lib/controller.ts for Zalo
 // (string IDs, no threads/callback queries, text-based dialogs).
 
-import type { ExtensionCommandContext, ExtensionUIContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import { parseLeadingCommand } from "./command-parser.ts";
-import type { CapturedAgentSession, ZaloIncomingMessage, ZaloMessageMode, ZaloTransport, ZaloTurn } from "./types.ts";
+import type { CapturedAgentSession, ZaloCommandHandler, ZaloIncomingMessage, ZaloMessageMode, ZaloTransport, ZaloTurn } from "./types.ts";
 import type { ZaloUiRuntime } from "./ui.ts";
 import { extractMediaEntries, type IncomingMedia } from "./attachments.ts";
 import { log } from "./logger.ts";
@@ -14,8 +14,6 @@ import { commandErrorMessage, getRunnerMode, setRunnerUiContext, ZALO_EXTENSION_
 import { getCurrentZaloTurn, runWithZaloTurn } from "./turn-context.ts";
 
 const ctrlLog = log.child("controller");
-
-export type ZaloCommandHandler = (args: string, ctx: ExtensionCommandContext) => Promise<void>;
 
 // ── Routed UI stack (adapted from pi-telegram-plus controller UI swap) ────────
 

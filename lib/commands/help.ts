@@ -11,7 +11,7 @@ const HELP_TEXT = [
   "/stop — interrupt the running turn / cancel dialogs",
   "/cancel — cancel a pending dialog",
   "/zalo [status|on|off|pair|unpair|open|locked|reset] — manage the bot",
-  "/zalo verbal=on|off — show/hide thinking + tool calls in chat (default off)",
+  "/zalo-config — configure tool/thinking render levels and message mode",
   "",
   "Any other text is sent to π as a prompt. Slash commands supported by pi",
   "and other extensions (e.g. /new, /model, /compact) also work.",
@@ -20,7 +20,7 @@ const HELP_TEXT = [
 export function registerHelpCommand(registry: CommandRegistry): void {
   registry.registerCommand("help", {
     description: "Show command help",
-    handler: async (_args, ctx) => {
+    handler: async (_args: string, ctx: any) => {
       ctx.ui.notify(HELP_TEXT, "info");
     },
   });

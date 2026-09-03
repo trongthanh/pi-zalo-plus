@@ -92,7 +92,7 @@ export function createZaloUiRuntime(deps: {
   const isAffirmative = (value: string) => /^(y|yes|ok|okay|true|có|co|đúng|dung)$/i.test(value.trim());
 
   return {
-    create(chatId, sourceMessageId) {
+    create(chatId: string, sourceMessageId?: string) {
       // base = the real TUI context captured BEFORE the routed UI is swapped in.
       const base = deps.getSession()?.extensionRunner.getUIContext?.() as ExtensionUIContext | undefined;
 
@@ -218,7 +218,7 @@ export function createZaloUiRuntime(deps: {
         getToolsExpanded: () => base?.getToolsExpanded?.() ?? false,
         setTheme: (theme) => base?.setTheme?.(theme as never) ?? { success: false, error: "UI not available" },
         getTheme: (name) => base?.getTheme?.(name),
-        getAllThemes: () => base?.getAllThemes?.() ?? [],
+        getAllThemes: () => (base?.getAllThemes?.() ?? []) as { name: string; path: string | undefined }[],
 
         // ---- Editor/terminal: no-ops (remote turns must not touch the local editor). ----
         onTerminalInput: () => () => {},

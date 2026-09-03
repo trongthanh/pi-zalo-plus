@@ -10,8 +10,9 @@
 //   lib/__tests__/      — test suite
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { ensurePairingCode, getAgentDir, isZaloEnabled, migrateLegacyTokenFile, readZaloConfig, writeZaloConfig } from "./lib/config.ts";
-import { createZaloController, type ZaloCommandHandler } from "./lib/controller.ts";
+import { ensurePairingCode, isZaloEnabled, migrateLegacyTokenFile, readZaloConfig, writeZaloConfig } from "./lib/config.ts";
+import { createZaloController } from "./lib/controller.ts";
+import type { ZaloCommandHandler } from "./lib/types.ts";
 import { initLogger, log } from "./lib/logger.ts";
 import { formatPairingInstructions } from "./lib/pairing.ts";
 import { createZaloPollingRuntime } from "./lib/polling.ts";
@@ -26,15 +27,12 @@ import { getCurrentZaloTurn } from "./lib/turn-context.ts";
 // ── Extracted modules ───────────────────────────────────────────────────────
 import { createHeartbeat } from "./lib/heartbeat.ts";
 import { buildStatusState, formatZaloStatusLine, ZALO_STATUS_KEY } from "./lib/status.ts";
-import { downloadIncomingAttachment, extractMediaEntries, resolveDownloadDir, type IncomingMedia } from "./lib/attachments.ts";
+import { downloadIncomingAttachment, resolveDownloadDir, type IncomingMedia } from "./lib/attachments.ts";
 
 // ── Command modules ─────────────────────────────────────────────────────────
 import { buildChatZaloCommandHandler, registerZaloCommands } from "./lib/commands/zalo.ts";
 import { buildChatStatusHandler, registerStatusCommand } from "./lib/commands/status.ts";
 import { buildChatHelpHandler, registerHelpCommand } from "./lib/commands/help.ts";
-import { registerLifecycleCommands } from "./lib/commands/lifecycle.ts";
-import { registerSessionCommands } from "./lib/commands/session.ts";
-import { registerSettingsCommands } from "./lib/commands/settings.ts";
 import { registerZaloConfigCommands } from "./lib/commands/zalo-config.ts";
 
 const indexLog = log.child("index");
@@ -120,9 +118,12 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
   });
 
   // ── TUI command registry ──────────────────────────────────────────────────
+  // Only register Zalo-specific commands (zalo, status, help, zalo-config).
+  // Built-in pi commands (new, fork, clone, tree, resume, cd, cwd, name, session,
+  // compact, reload, stop, quit, settings, model, thinking, login, logout, etc.)
+  // are already registered by pi itself and must NOT be re-registered here.
   const tuiRegistry = createTuiCommandRegistry(pi);
 
-  // Register TUI commands
   registerZaloCommands(tuiRegistry, { getSession: getActiveSession }, {
     getConfig: () => config,
     setConfig,
@@ -135,13 +136,6 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
     getActiveTurn: () => getCurrentZaloTurn(),
   });
   registerHelpCommand(tuiRegistry);
-  registerLifecycleCommands(tuiRegistry);
-  registerSessionCommands(tuiRegistry, {
-    getSession: getActiveSession,
-    setSessionName: (name) => getActiveSession()?.sessionManager.setSessionName(name),
-    getSessionName: () => getActiveSession()?.sessionManager.getSessionName(),
-  });
-  registerSettingsCommands(tuiRegistry, { getSession: getActiveSession });
   registerZaloConfigCommands(tuiRegistry, {
     getConfig: () => config,
     setConfig,
@@ -157,12 +151,16 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
   };
 
   const zaloCommands = new Map<string, ZaloCommandHandler>();
-  zaloCommands.set("status", buildChatStatusHandler(
-    () => config,
-    () => config.activeChatId,
-    sendChatReply,
-  ));
-  zaloCommands.set("help", buildChatHelpHandler(sendChatReply));
+  zaloCommands.set("status", async () => {
+    buildChatStatusHandler(
+      () => config,
+      () => config.activeChatId,
+      sendChatReply,
+    )();
+  });
+  zaloCommands.set("help", async () => {
+    buildChatHelpHandler(sendChatReply)();
+  });
   zaloCommands.set("zalo", buildChatZaloCommandHandler(
     () => config,
     persistConfig,

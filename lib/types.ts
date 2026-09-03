@@ -32,9 +32,6 @@ export type ZaloConfig = {
   /** How to handle incoming messages while the agent is running:
    *  "steer" — inject into the current turn (default); "queue" — wait. */
   messageMode?: ZaloMessageMode;
-  /** When true, thinking and tool-call lines are rendered in chat (detail via
-   *  the tool/thinking levels). Default false — chat carries only π's replies. */
-  verbal?: boolean;
   /** Directory incoming attachments are downloaded into. Supports `~` and
    *  relative paths (resolved against the pi agent dir). Default: the active
    *  session's working directory. */
@@ -94,6 +91,8 @@ export type ZaloSentMessage = { message_id: string };
 export type ZaloSendOptions = {
   replyToMessageId?: string;
 };
+
+export type ZaloCommandHandler = (args: string, ctx: import("@earendil-works/pi-coding-agent").ExtensionCommandContext) => Promise<void>;
 
 /** Outgoing transport surface used by ui/controller/renderer. */
 export type ZaloTransport = {

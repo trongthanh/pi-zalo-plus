@@ -45,7 +45,6 @@ const FIELD_TO_STATE_KEY: Record<string, string> = {
   messageMode: "message_mode",
   tool: "tool",
   thinking: "thinking",
-  verbal: "verbal",
   downloadDir: "download_dir",
 };
 

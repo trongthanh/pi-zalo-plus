@@ -22,7 +22,7 @@ vi.mock("@earendil-works/pi-coding-agent", () => {
   MockSessionManager.prototype.getSessionFile = vi.fn();
   MockSessionManager.prototype.getSessionName = vi.fn();
   MockSessionManager.prototype.getCwd = vi.fn().mockReturnValue("/tmp");
-  MockSessionManager.prototype.setSessionName = vi.fn();
+  (MockSessionManager.prototype as unknown as Record<string, unknown>).setSessionName = vi.fn();
 
   return {
     AgentSession: MockAgentSession,

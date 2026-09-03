@@ -98,6 +98,7 @@ declare module "@earendil-works/pi-coding-agent" {
     getSessionName(): string | undefined;
     getCwd(): string;
     setSessionName(name: string): void;
+    getSessionName(): string | undefined;
     static list(cwd: string): Promise<Array<{ id: string; name?: string; path: string }>>;
     static create(cwd: string, sessionFile?: string, options?: { parentSession?: string }): SessionManagerCompat;
     static open(path: string): SessionManagerCompat;
@@ -129,8 +130,6 @@ declare module "@earendil-works/pi-coding-agent" {
   interface ExtensionUIContext {
     theme: Record<string, unknown>;
     setTheme(theme: Record<string, unknown>): { success: boolean; error?: string };
-    getTheme(name?: string): Record<string, unknown> | undefined;
-    getAllThemes(): Array<{ name: string; label?: string }>;
   }
 }
 

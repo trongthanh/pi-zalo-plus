@@ -226,7 +226,6 @@ export function registerZaloRenderer(
     try {
       toolArgs.set(event.toolCallId, event.args);
       const config = deps.getConfig();
-      if (config.verbal !== true) return; // quiet mode: no tool lines in chat
       const level = renderLevel(config, "tool");
       if (level === "hidden") return;
       const inline = level === "brief"
@@ -243,7 +242,6 @@ export function registerZaloRenderer(
       const args = toolArgs.get(event.toolCallId);
       toolArgs.delete(event.toolCallId);
       const config = deps.getConfig();
-      if (config.verbal !== true) return; // quiet mode: no tool lines in chat
       const level = renderLevel(config, "tool");
       if (level === "hidden") return;
       if (level === "brief") {
@@ -276,9 +274,7 @@ export function registerZaloRenderer(
       const thinkingLevel = renderLevel(config, "thinking");
       const toolLevel = renderLevel(config, "tool");
       const rendered = contentToRenderParts(message.content, thinkingLevel, toolLevel);
-      // Quiet mode (verbal=false, the default) suppresses thinking/tool lines —
-      // only the assistant's text reply (and image outputs) reach the chat.
-      if (config.verbal === true) await sendInlineEvents(rendered.inlineEvents);
+      await sendInlineEvents(rendered.inlineEvents);
       const body = rendered.body || message.errorMessage || "";
       if (body.trim()) {
         await sendToTurn(markdownToZaloHtml(body));

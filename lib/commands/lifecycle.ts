@@ -22,7 +22,7 @@ export function registerLifecycleCommands(registry: CommandRegistry): void {
   // ── /reload ────────────────────────────────────────────────────────────
   registry.registerCommand("reload", {
     description: "Reload extensions, skills, prompts, and themes",
-    handler: async (_args, ctx) => {
+    handler: async (_args: string, ctx: any) => {
       const ui = ctx.ui;
       ui.notify("Reloading…", "info");
       await ctx.reload();
@@ -32,7 +32,7 @@ export function registerLifecycleCommands(registry: CommandRegistry): void {
   // ── /stop ─────────────────────────────────────────────────────────────
   registry.registerCommand("stop", {
     description: "Stop the current agent turn",
-    handler: async (_args, ctx) => {
+    handler: async (_args: string, ctx: any) => {
       const ui = ctx.ui;
       ctx.abort();
       ui.notify("⏹ Stopped.", "info");
@@ -42,7 +42,7 @@ export function registerLifecycleCommands(registry: CommandRegistry): void {
   // ── /quit ──────────────────────────────────────────────────────────────
   registry.registerCommand("quit", {
     description: "Shut down pi",
-    handler: async (_args, ctx) => {
+    handler: async (_args: string, ctx: any) => {
       const ui = ctx.ui;
       const confirmed = await ui.confirm("Quit", "Shut down pi?");
       if (confirmed) {

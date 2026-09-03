@@ -13,7 +13,6 @@ export type StatusState = {
   openAccess: boolean;
   paired: boolean;
   pollingActive: boolean;
-  verbal: boolean;
   busy: boolean;
   botName?: string;
   error?: string;
@@ -26,7 +25,6 @@ export function formatZaloStatusLine(state: StatusState): string {
   else if (state.paired) flags.push("paired");
   else flags.push("unpaired");
   flags.push(state.pollingActive ? "polling" : "idle");
-  flags.push(state.verbal ? "verbal" : "quiet");
   if (state.busy) flags.push("busy");
   if (state.error) flags.push(`error: ${state.error.slice(0, 60)}`);
   return `Ⓩ ${flags.join(" · ")}`;
@@ -39,7 +37,6 @@ export function buildStatusState(config: ZaloConfig, pollingActive: boolean, bus
     openAccess: config.openAccess === true,
     paired: config.allowedUserId !== undefined,
     pollingActive,
-    verbal: config.verbal === true,
     busy,
     botName: config.botName,
     error,

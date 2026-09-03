@@ -10,7 +10,7 @@ export function registerSettingsCommands(
 ): void {
   registry.registerCommand("settings", {
     description: "View or change common settings",
-    handler: async (_args, ctx) => {
+    handler: async (_args: string, ctx: any) => {
       const ui = ctx.ui;
       const session = deps.getSession();
       if (!session) { ui.notify("No active session", "error"); return; }

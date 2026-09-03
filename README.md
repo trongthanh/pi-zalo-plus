@@ -1,10 +1,17 @@
 # pi-zalo-plus
 
+<img src="https://raw.githubusercontent.com/trongthanh/pi-zalo-plus/main/docs/img/pi-zalo-plus.png" alt="pi-zalo-plus Logo" width="200">
+
 ## Overview
 
 **Full Zalo control of [pi coding agent](https://github.com/earendil-works/pi-coding-agent) — commands, interactive UI, model/session management, file transfer, and real-time streaming output, all from Zalo.**
 
 `pi-zalo-plus` is a pi extension that turns Zalo into a full-featured remote control surface for the pi coding agent. It mirrors the core pi TUI experience into Zalo chat, with interactive menus, file attachments, live agent output rendering, and safe single-user pairing. Built on the [Zalo Bot Platform](https://bot.zaloplatforms.com) long-polling API.
+
+
+| <img src="https://raw.githubusercontent.com/trongthanh/pi-zalo-plus/main/docs/img/screenshot-1-tool-rendering-on.jpg" alt="Tool Rendering On" width="250"> | <img src="https://raw.githubusercontent.com/trongthanh/pi-zalo-plus/main/docs/img/screenshot-2-tool-rendering-off.jpg" alt="Tool Rendering Off" width="250"> |
+|---|---|
+| Tool Rendering On | Tool Rendering Off |
 
 ## Setup
 
@@ -56,7 +63,6 @@ Full example with every key (copy only what you need):
   "open_access": false,
   "allowed_user_id": "ab19c1b361fa88a4d1eb",
   "message_mode": "queue",
-  "verbal": false,
   "tool": "brief",
   "thinking": "brief",
   "download_dir": "~/.pi/agent/attachments",
@@ -76,9 +82,8 @@ Full example with every key (copy only what you need):
 | `open_access` | boolean | `false` | `true` = serve **any** Zalo user without pairing (`/zalo open`); `false` = only the paired user is served (`/zalo locked`). |
 | `allowed_user_id` | string | — | Zalo user id allowed to talk to the bot. Set automatically by a successful `/pair`; can also be pasted by hand (get your id by messaging the bot once and checking the log). |
 | `message_mode` | `"steer"` \| `"queue"` | `"steer"` | Messages arriving while π is working: `"steer"` injects them into the running turn; `"queue"` holds them and runs them as the next turn. |
-| `verbal` | boolean | `false` | `true` = thinking + tool-call lines render in chat; `false` = only π's replies. Toggled with `/zalo verbal=on` / `/zalo verbal=off`. |
-| `tool` | `"hidden"` \| `"brief"` \| `"full"` | `"brief"` | Detail level for tool-execution lines in chat (visible only when `verbal` is `true`). |
-| `thinking` | `"hidden"` \| `"brief"` \| `"full"` | `"brief"` | Detail level for thinking blocks in chat (visible only when `verbal` is `true`). |
+| `tool` | `"hidden"` \| `"brief"` \| `"full"` | `"brief"` | Detail level for tool-execution lines in chat (`"hidden"` suppresses them). |
+| `thinking` | `"hidden"` \| `"brief"` \| `"full"` | `"brief"` | Detail level for thinking blocks in chat (`"hidden"` suppresses them). |
 | `download_dir` | string | working directory | Directory incoming attachments are downloaded into. Supports `~` expansion; relative paths resolve against `~/.pi/agent`. Useful to keep large/temporary attachments out of synced folders. |
 | `bot_name` | string | auto | Bot display name, resolved once via `getMe` on first start. Informational only — shown in `/status`. |
 
@@ -101,7 +106,7 @@ Hand edits are picked up live: the poller re-reads `zalo.json` before every
 long-poll cycle, and every `/zalo …` command persists atomically (temp file +
 rename) with mode `0600`.
 
-## Chat commands
+## Zalo chat commands
 
 | Command | Effect |
 | --- | --- |
@@ -116,11 +121,10 @@ also work from chat: unknown commands are forwarded to the session's command reg
 
 ## TUI command
 
-`/zalo [status|on|off|pair|unpair|open|locked|reset|verbal=on|verbal=off]` — manage the
+`/zalo [status|on|off|pair|unpair|open|locked|reset]` — manage the
 bot from the terminal: toggle polling, (re)generate the pairing code, **`open`** = skip
 pairing and accept messages from any Zalo account, **`locked`** = require pairing again,
-unpair, reset the update offset so undelivered updates are replayed, or toggle
-**`verbal`** (chat shows thinking + tool-call lines when on; default off = replies only).
+unpair, or reset the update offset so undelivered updates are replayed.
 
 ## Behavior notes
 
@@ -136,14 +140,13 @@ unpair, reset the update offset so undelivered updates are replayed, or toggle
   queries, so pi's `select` / `confirm` / `input` / `editor` dialogs are rendered as
   text (reply with a number / yes-no / free text; `/cancel` or `cancel` aborts).
   Custom TUI dialogs are not supported over chat and resolve as cancelled.
-- **Verbal mode (default off)**: by default the chat carries only π's text
-  replies — thinking and tool-call lines are suppressed. Toggle with
-  `/zalo verbal=on` / `/zalo verbal=off` (or set `"verbal": true` in zalo.json);
-  when on, detail follows the `tool` / `thinking` render levels.
+- **Tool and thinking rendering**: by default, tool calls and thinking blocks render
+  as brief inline lines. Set `tool=hidden` or `thinking=hidden` in `/zalo-config`
+  (or `"tool": "hidden"` / `"thinking": "hidden"` in zalo.json) to suppress them.
 - **Output rendering**: assistant markdown is converted to the Zalo-supported HTML
   subset (bold/italic/strike/lists/headings); messages longer than 2000 chars are
-  split at line boundaries; thinking and tool calls render as brief lines
-  (configurable `tool` / `thinking` render levels: `hidden|brief|full`).
+  split at line boundaries; thinking and tool calls render at their configured
+  render levels (`hidden|brief|full`).
 - **Typing indicator** is sent while a turn is active.
 - **Single poller**: a cross-process lock (`~/.pi/agent/zalo-poll-*.lock`) ensures
   only one pi instance polls the bot; the 408 "Request timeout" response is treated
@@ -161,58 +164,6 @@ unpair, reset the update offset so undelivered updates are replayed, or toggle
   The legacy token-only `zalo-bot.json` is migrated here on startup and removed.
 - `~/.pi/agent/logs/pi-zalo-plus-YYYY-MM-DD.log` — JSON-lines log
   (level via `PI_ZALO_PLUS_LOG_LEVEL=debug|info|warn|error`)
-
-## Project Structure
-
-```
-pi-zalo-plus/
-├── index.ts                     # Extension entry point
-├── package.json
-├── tsconfig.json
-├── vitest.config.ts
-├── pi-host.d.ts                 # Type augmentation
-├── scripts/
-│   └── test-routed-ui-spread.mjs  # Routed UI proxy regression test
-├── .pi/
-│   └── settings.json            # pi package registration
-└── lib/
-    ├── types.ts                 # All TypeScript interfaces & types
-    ├── zalo-api.ts              # Zalo Bot HTTP API client
-    ├── polling.ts               # Long polling with multi-instance lock
-    ├── controller.ts            # Message router & prompt executor
-    ├── ui.ts                    # Interactive UI (notify, confirm, input, select)
-    ├── renderer.ts              # Agent event → Zalo output renderer
-    ├── markdown.ts              # Markdown → Zalo HTML converter
-    ├── html.ts                  # HTML escaping utilities
-    ├── text-split.ts            # UTF-8-safe text splitter
-    ├── command-parser.ts        # Slash command parser
-    ├── config.ts                # Configuration store
-    ├── transport.ts             # Zalo API transport with retry & chunking
-    ├── pairing.ts               # Bot pairing/authorization
-    ├── attachments.ts           # Incoming file attachment downloader
-    ├── heartbeat.ts             # Typing indicator pulse
-    ├── status.ts                # TUI status line formatter
-    ├── logger.ts                # File-based JSON Lines logger with rotation
-    ├── session-capture.ts       # Agent session capture & handler patching
-    ├── pi-compat.ts             # Pi runtime compatibility helpers
-    ├── turn-context.ts          # AsyncLocalStorage turn context
-    ├── commands/
-    │   ├── register.ts          # Command registry aggregator
-    │   ├── zalo.ts              # /zalo command (TUI + chat)
-    │   ├── status.ts            # /status command
-    │   ├── help.ts              # /help command
-    │   ├── lifecycle.ts         # /compact, /reload, /stop, /quit
-    │   ├── session.ts           # /new, /fork, /clone, /tree, /resume, /cd, /cwd, /name
-    │   ├── settings.ts          # /settings menu
-    │   └── zalo-config.ts       # /zalo-config
-    └── __tests__/
-        ├── _setup.ts
-        ├── html.test.ts
-        ├── text-split.test.ts
-        ├── markdown.test.ts
-        ├── config.test.ts
-        └── command-parser.test.ts
-```
 
 ## Troubleshooting
 
@@ -245,5 +196,10 @@ pi-zalo-plus/
   empty, which makes the bot look deaf while outbound still works. The extension
   defaults to `zapps.me` (override with `PI_ZALO_API_ROOT`).
 
+## Thanks
+
+- [@badlogic](https://github.com/badlogic) for the great minimal [pi-coding-agent](https://github.com/earendil-works/pi)
+- This plugin get much inspiration from [@jalyfeng](https://github.com/jalyfeng)'s [pi-telegram-plus](https://github.com/jalyfeng/pi-telegram-plus)
+
 ---
-@
+©️ 2026 [@trongthanh](https://github.com/trongthanh) ([thanh.im](https://thanh.im))

@@ -3,10 +3,9 @@
 // Adapted from pi-telegram-plus/lib/commands/info.ts for Zalo
 // (string chat IDs, no threads).
 
-import type { CommandRegistry, SessionDeps, InfoDeps } from "./register.ts";
+import type { CommandRegistry, InfoDeps } from "./register.ts";
 import type { ZaloConfig } from "../types.ts";
 import { isZaloEnabled } from "../config.ts";
-import { escapeHtml } from "../html.ts";
 
 function buildStatusHtml(config: ZaloConfig): string {
   const enabled = !!config.zaloToken && isZaloEnabled(config);
@@ -15,8 +14,9 @@ function buildStatusHtml(config: ZaloConfig): string {
     `Bot: ${config.botName ?? "unknown"}`,
     `Enabled: ${enabled ? "yes" : "no"}`,
     `Access: ${config.openAccess === true ? "open (any user)" : config.allowedUserId !== undefined ? `paired (${config.allowedUserId})` : `unpaired (code: ${config.pairingCode ?? "n/a"})`}`,
-    `Verbal: ${config.verbal === true ? "on" : "off"}`,
     `Message mode: ${config.messageMode ?? "steer"}`,
+    `Tool render: ${config.tool ?? "brief"}`,
+    `Thinking render: ${config.thinking ?? "brief"}`,
   ].join("\n");
   return lines;
 }
@@ -28,7 +28,7 @@ export function registerStatusCommand(
 ): void {
   registry.registerCommand("status", {
     description: "Show bot and session status",
-    handler: async (_args, ctx) => {
+    handler: async (_args: string, ctx: any) => {
       const ui = ctx.ui;
       const html = buildStatusHtml(getConfig());
 
@@ -50,7 +50,7 @@ export function registerStatusCommand(
 /** Build a chat-native /status handler (replies via transport). */
 export function buildChatStatusHandler(
   getConfig: () => ZaloConfig,
-  getActiveChatId: () => string | undefined,
+  _getActiveChatId: () => string | undefined,
   sendReply: (text: string) => void,
 ): () => void {
   return () => {

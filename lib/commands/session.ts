@@ -12,15 +12,13 @@ import { log } from "../logger.ts";
 
 const sessionLog = log.child("cmd.session");
 
+type MessageEntry = { type: string; id: string; message: { role: string; content?: unknown } };
+
 function truncate(text: string, max: number): string {
   return text.length <= max ? text : text.slice(0, max - 1) + "…";
 }
 
-function isMessageEntry(entry: { type?: string; message?: { role: string; content?: unknown } }): boolean {
-  return entry.type === "message";
-}
-
-function getEntryText(entry: { message?: { role: string; content?: unknown } }): string {
+function getEntryText(entry: MessageEntry): string {
   if (!entry.message?.content || !Array.isArray(entry.message.content)) return "(empty)";
   return (entry.message.content as Array<{ type?: string; text?: string }>)
     .filter((c) => c.type === "text" && typeof c.text === "string")
@@ -44,6 +42,14 @@ function resolveTargetCwd(input: string, cwd: string): string {
   return resolve(cwd, expanded);
 }
 
+function getMessageEntries(raw: unknown[]): MessageEntry[] {
+  return raw.filter(
+    (e): e is MessageEntry =>
+      typeof e === "object" && e !== null && (e as Record<string, unknown>).type === "message" &&
+      typeof (e as Record<string, unknown>).message === "object" && !!(e as Record<string, unknown>).message,
+  );
+}
+
 export function registerSessionCommands(
   registry: CommandRegistry,
   deps: SessionNameDeps,
@@ -51,7 +57,7 @@ export function registerSessionCommands(
   // ── /new ──────────────────────────────────────────────────────────────
   registry.registerCommand("new", {
     description: "Start a new session",
-    handler: async (_args, ctx) => {
+    handler: async (_args: string, ctx: any) => {
       const ui = ctx.ui;
       const confirmed = await ui.confirm("New session", "Start a new session? Current session will be saved.");
       if (!confirmed) return;
@@ -65,7 +71,7 @@ export function registerSessionCommands(
   // ── /fork ────────────────────────────────────────────────────────────
   registry.registerCommand("fork", {
     description: "Fork from a previous user message",
-    handler: async (args, ctx) => {
+    handler: async (args: string, ctx: any) => {
       const ui = ctx.ui;
       const session = deps.getSession();
       if (!session) { ui.notify("No active session", "error"); return; }
@@ -76,16 +82,16 @@ export function registerSessionCommands(
         return;
       }
 
-      const entries = session.sessionManager.getEntries();
-      const userEntries = entries.filter(isMessageEntry).filter((e) => e.message?.role === "user");
-      if (userEntries.length === 0) { ui.notify("No user messages to fork from.", "info"); return; }
+      const entries = getMessageEntries(session.sessionManager.getEntries() as unknown[]);
+      const userOnly = entries.filter((e) => e.message?.role === "user");
+      if (userOnly.length === 0) { ui.notify("No user messages to fork from.", "info"); return; }
 
-      const labels = userEntries.map((e) => truncate(getEntryText(e), 50));
+      const labels = userOnly.map((e) => truncate(getEntryText(e), 50));
       const choice = await ui.select("Fork from message", labels);
       if (!choice) return;
       const index = labels.indexOf(choice);
       if (index < 0) return;
-      await ctx.fork(userEntries[index].id, { position: "before" });
+      await ctx.fork(userOnly[index].id, { position: "before" });
       ui.notify("✅ Forked session.", "info");
     },
   });
@@ -93,7 +99,7 @@ export function registerSessionCommands(
   // ── /clone ────────────────────────────────────────────────────────────
   registry.registerCommand("clone", {
     description: "Clone at a previous user message",
-    handler: async (args, ctx) => {
+    handler: async (args: string, ctx: any) => {
       const ui = ctx.ui;
       const session = deps.getSession();
       if (!session) { ui.notify("No active session", "error"); return; }
@@ -104,16 +110,16 @@ export function registerSessionCommands(
         return;
       }
 
-      const entries = session.sessionManager.getEntries();
-      const userEntries = entries.filter(isMessageEntry).filter((e) => e.message?.role === "user");
-      if (userEntries.length === 0) { ui.notify("No user messages to clone from.", "info"); return; }
+      const entries = getMessageEntries(session.sessionManager.getEntries() as unknown[]);
+      const userOnly = entries.filter((e) => e.message?.role === "user");
+      if (userOnly.length === 0) { ui.notify("No user messages to clone from.", "info"); return; }
 
-      const labels = userEntries.map((e) => truncate(getEntryText(e), 50));
+      const labels = userOnly.map((e) => truncate(getEntryText(e), 50));
       const choice = await ui.select("Clone at message", labels);
       if (!choice) return;
       const index = labels.indexOf(choice);
       if (index < 0) return;
-      await ctx.fork(userEntries[index].id, { position: "at" });
+      await ctx.fork(userOnly[index].id, { position: "at" });
       ui.notify("✅ Cloned session.", "info");
     },
   });
@@ -121,7 +127,7 @@ export function registerSessionCommands(
   // ── /tree ─────────────────────────────────────────────────────────────
   registry.registerCommand("tree", {
     description: "Navigate session tree to a previous message",
-    handler: async (args, ctx) => {
+    handler: async (args: string, ctx: any) => {
       const ui = ctx.ui;
       const session = deps.getSession();
       if (!session) { ui.notify("No active session", "error"); return; }
@@ -133,17 +139,17 @@ export function registerSessionCommands(
         return;
       }
 
-      const entries = session.sessionManager.getEntries();
-      const userEntries = entries.filter(isMessageEntry).filter((e) => e.message?.role === "user");
-      if (userEntries.length === 0) { ui.notify("No entries to navigate to.", "info"); return; }
+      const entries = getMessageEntries(session.sessionManager.getEntries() as unknown[]);
+      const userOnly = entries.filter((e) => e.message?.role === "user");
+      if (userOnly.length === 0) { ui.notify("No entries to navigate to.", "info"); return; }
 
-      const labels = userEntries.map((e) => truncate(getEntryText(e), 50));
+      const labels = userOnly.map((e) => truncate(getEntryText(e), 50));
       const choice = await ui.select("Navigate to message", labels);
       if (!choice) return;
       const index = labels.indexOf(choice);
       if (index < 0) return;
       const wantsSummary = await ui.confirm("Navigate", "Summarize the abandoned branch?");
-      await ctx.navigateTree(userEntries[index].id, { summarize: wantsSummary });
+      await ctx.navigateTree(userOnly[index].id, { summarize: wantsSummary });
       ui.notify("✅ Navigated to selected point.", "info");
     },
   });
@@ -151,7 +157,7 @@ export function registerSessionCommands(
   // ── /cwd ──────────────────────────────────────────────────────────────
   registry.registerCommand("cwd", {
     description: "Show current working directory",
-    handler: async (_args, ctx) => {
+    handler: async (_args: string, ctx: any) => {
       ctx.ui.notify(`cwd: ${escapeHtml(ctx.cwd)}`, "info");
     },
   });
@@ -159,7 +165,7 @@ export function registerSessionCommands(
   // ── /cd ───────────────────────────────────────────────────────────────
   registry.registerCommand("cd", {
     description: "Switch pi working directory",
-    handler: async (args, ctx) => {
+    handler: async (args: string, ctx: any) => {
       const ui = ctx.ui;
       const rawPath = args.trim() || await ui.input("Working directory", ctx.cwd);
       if (!rawPath) return;
@@ -182,7 +188,7 @@ export function registerSessionCommands(
       if (!sessionPath) { ui.notify("Cannot switch cwd from an ephemeral session.", "error"); return; }
 
       const result = await ctx.switchSession(sessionPath, {
-        withSession: async (nextCtx) => {
+        withSession: async (nextCtx: any) => {
           nextCtx.ui.notify(`✅ Switched cwd:\n${escapeHtml(targetCwd)}`, "info");
         },
       });
@@ -193,7 +199,7 @@ export function registerSessionCommands(
   // ── /resume ───────────────────────────────────────────────────────────
   registry.registerCommand("resume", {
     description: "Resume a previous session",
-    handler: async (_args, ctx) => {
+    handler: async (_args: string, ctx: any) => {
       const ui = ctx.ui;
       const sessions = await SessionManager.list(ctx.cwd);
       if (sessions.length === 0) { ui.notify("No sessions found.", "info"); return; }
@@ -211,7 +217,7 @@ export function registerSessionCommands(
   // ── /name ──────────────────────────────────────────────────────────────
   registry.registerCommand("name", {
     description: "Set or show session name",
-    handler: async (args, ctx) => {
+    handler: async (args: string, ctx: any) => {
       const ui = ctx.ui;
       if (args) {
         deps.setSessionName(args);
@@ -226,7 +232,7 @@ export function registerSessionCommands(
   // ── /session ──────────────────────────────────────────────────────────
   registry.registerCommand("session", {
     description: "Show session statistics",
-    handler: async (_args, ctx) => {
+    handler: async (_args: string, ctx: any) => {
       const ui = ctx.ui;
       const session = deps.getSession();
       if (!session) { ui.notify("No active session", "error"); return; }
