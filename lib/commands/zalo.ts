@@ -103,6 +103,9 @@ export function buildChatZaloCommandHandler(
         `Bot: ${config.botName ?? "unknown"}`,
         `Enabled: ${enabled ? "yes" : "no"}`,
         `Access: ${config.openAccess === true ? "open (any user)" : config.allowedUserId !== undefined ? `paired (${config.allowedUserId})` : `unpaired (code: ${config.pairingCode ?? "n/a"})`}`,
+        `Message mode: ${config.messageMode ?? "steer"}`,
+        `Tool render: ${config.tool ?? "brief"}`,
+        `Thinking render: ${config.thinking ?? "brief"}`,
       ].filter(Boolean).join("\n"));
       return;
     }
