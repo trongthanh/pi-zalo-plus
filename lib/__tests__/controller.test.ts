@@ -11,16 +11,20 @@ function makeController(overrides: Partial<ControllerDeps> = {}) {
   const sendText = vi.fn().mockResolvedValue(undefined);
   const prompt = vi.fn().mockResolvedValue(undefined);
   const controller = createZaloController({
-    getSession: () => ({ prompt }) as unknown as CapturedAgentSession,
+    getSession: () => ({
+      prompt,
+      // Minimal runner stub so the queue-mode prompt path can build its UI context.
+      extensionRunner: { getUIContext: () => ({}), setUIContext: () => undefined },
+    }) as unknown as CapturedAgentSession,
     transport: { sendText } as unknown as ZaloTransport,
-    ui: {} as unknown as ZaloUiRuntime,
+    ui: { create: () => ({}) } as unknown as ZaloUiRuntime,
     authorizeUser: async () => true,
     setActiveChatId: async () => undefined,
     getBotName: () => "bot",
     getMessageMode: () => "queue",
     zaloCommands: new Map(),
     getActiveTurn: () => undefined,
-    beginZaloTurn: () => undefined,
+    beginZaloTurn: () => ({ chatId: "chat-1" }),
     endZaloTurn: () => undefined,
     ...overrides,
   });
@@ -61,6 +65,39 @@ describe("unsupported message auto-reply", () => {
     const { controller, sendText } = makeController();
     await controller.handleMessage(bareMessage());
     expect(sendText).not.toHaveBeenCalled();
+  });
+
+  it("downloads voice notes and forwards the saved path to the agent", async () => {
+    const download = vi.fn().mockResolvedValue("/tmp/voice-123.aac");
+    const { controller, sendText, prompt } = makeController({
+      downloadIncomingAttachment: download,
+    });
+    const voice = bareMessage("msg-voice");
+    (voice as Record<string, unknown>).voice_url = "https://voice-aac-dl.zdn.vn/x/y.aac";
+    await controller.handleMessage(voice, "message.voice.received");
+    // queue-mode submits the prompt via a tail promise — flush microtasks first.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(download).toHaveBeenCalledWith(expect.objectContaining({ kind: "voice" }));
+    // The saved path reaches the agent as a [zalo attachments] block.
+    expect(prompt).toHaveBeenCalledTimes(1);
+    const promptText = (prompt.mock.calls[0] as unknown[])[0] as string;
+    expect(promptText).toContain("[zalo attachments]");
+    expect(promptText).toContain("/tmp/voice-123.aac");
+    // The user gets the standard attachment-receipt confirmation, not the
+    // unsupported-message auto-reply.
+    expect(sendText).toHaveBeenCalledTimes(1);
+    const [receiptChatId, receiptText] = sendText.mock.calls[0] as [string, string];
+    expect(receiptChatId).toBe("chat-1");
+    expect(receiptText).toContain("✅ Saved attachments");
+    expect(receiptText).not.toContain("không đọc được");
+  });
+
+  it("ignores voice events with no downloadable URL instead of erroring", async () => {
+    const { controller, sendText, prompt } = makeController();
+    await controller.handleMessage(bareMessage("msg-voice-empty"), "message.voice.received");
+    // Not a KNOWN contentless path and not unsupported → no reply, no prompt.
+    expect(sendText).not.toHaveBeenCalled();
+    expect(prompt).not.toHaveBeenCalled();
   });
 
   it("does not reply when authorization fails", async () => {

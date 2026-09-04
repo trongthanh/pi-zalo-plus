@@ -20,16 +20,18 @@ const KNOWN_MESSAGE_EVENTS = new Set([
   "message.text.received",
   "message.image.received",
   "message.sticker.received",
+  "message.voice.received",
 ]);
 
 // Sent when a message type the Zalo Bot API cannot expose arrives (folders,
-// voice notes, other unsupported attachments). The payload carries only
+// other unsupported attachments). The payload carries only
 // chat/from/message_id — no readable content — so we auto-reply instead of
-// silently dropping it.
+// silently dropping it. (Voice notes DO arrive as message.voice.received with
+// a voice_url — handled like other media.)
 const UNSUPPORTED_EVENT = "message.unsupported.received";
 const UNSUPPORTED_REPLY_TEXT = [
   "🤖 Xin lỗi, mình không đọc được loại tin nhắn này (Zalo Bot API không hỗ trợ nội dung đính kèm dạng này).",
-  "Bạn thử gửi lại dưới dạng ảnh hoặc file (PDF, DOCX…) — từng file một nhé!",
+  "Zalo Bot API hiện chỉ hỗ trợ nhận file ảnh, sticker và tin nhắn thoại.",
 ].join("\n");
 
 // ── Routed UI stack (adapted from pi-telegram-plus controller UI swap) ────────

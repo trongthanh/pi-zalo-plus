@@ -59,6 +59,8 @@ export type ZaloIncomingMessage = {
   from?: ZaloUser;
   date?: number;
   photo_url?: string;
+  /** Observed on message.voice.received: direct .aac download URL (voice-aac-dl.zdn.vn). */
+  voice_url?: string;
   /** Sticker reference — exact shape is undocumented; may be an id or a URL. */
   sticker?: string;
   sticker_url?: string;
