@@ -47,5 +47,9 @@
       "./index.ts"
     ],
     "image": "https://raw.githubusercontent.com/trongthanh/pi-zalo-plus/main/docs/img/pi-zalo-plus.png"
+  },
+  "allowScripts": {
+    "@google/genai@1.52.0": true,
+    "protobufjs@7.6.6": true
   }
 }
