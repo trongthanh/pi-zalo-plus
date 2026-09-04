@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "pi-zalo-plus",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Full Zalo control of pi coding agent — commands, interactive UI, model/session management, file transfer, and real-time streaming output, all from Zalo",
   "keywords": [
     "coding-agent",
