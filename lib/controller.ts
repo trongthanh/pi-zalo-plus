@@ -15,6 +15,25 @@ import { getCurrentZaloTurn, runWithZaloTurn } from "./turn-context.ts";
 
 const ctrlLog = log.child("controller");
 
+// Zalo message events whose payloads the controller already handles.
+const KNOWN_MESSAGE_EVENTS = new Set([
+  "message.text.received",
+  "message.image.received",
+  "message.sticker.received",
+  "message.voice.received",
+]);
+
+// Sent when a message type the Zalo Bot API cannot expose arrives (folders,
+// other unsupported attachments). The payload carries only
+// chat/from/message_id — no readable content — so we auto-reply instead of
+// silently dropping it. (Voice notes DO arrive as message.voice.received with
+// a voice_url — handled like other media.)
+const UNSUPPORTED_EVENT = "message.unsupported.received";
+const UNSUPPORTED_REPLY_TEXT = [
+  "🤖 Xin lỗi, mình không đọc được loại tin nhắn này (Zalo Bot API không hỗ trợ nội dung đính kèm dạng này).",
+  "Zalo Bot API hiện chỉ hỗ trợ nhận file ảnh, sticker và tin nhắn thoại.",
+].join("\n");
+
 // ── Routed UI stack (adapted from pi-telegram-plus controller UI swap) ────────
 
 type ZaloUiStackEntry = {
@@ -411,6 +430,16 @@ export function createZaloController(deps: {
       }
 
       const hasPromptInput = !!trimmed || mediaEntries.length > 0 || eventName === "message.sticker.received";
+      if (!hasPromptInput && eventName === UNSUPPORTED_EVENT) {
+        ctrlLog.info("unsupported message — auto-replying to sender", { chatId, sourceMessageId });
+        await deps.transport.sendText(chatId, UNSUPPORTED_REPLY_TEXT, { replyToMessageId: sourceMessageId })
+          .catch(ctrlLog.swallow("warn", "sendText unsupported-notice failed", { chatId }));
+        return;
+      }
+      if (!hasPromptInput && eventName && !KNOWN_MESSAGE_EVENTS.has(eventName)) {
+        ctrlLog.warn("unhandled zalo message event — ignored", { chatId, eventName, sourceMessageId });
+        return;
+      }
       if (hasPromptInput) {
         const handled = trimmed ? await tryHandleSlashCommand(rawText, chatId, sourceMessageId) : false;
         if (!handled) {

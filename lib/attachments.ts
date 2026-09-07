@@ -20,10 +20,14 @@ export type IncomingMedia = {
 };
 
 /** Extract media entries from an incoming Zalo message. */
-export function extractMediaEntries(message: { photo_url?: string; attachments?: Array<Record<string, unknown>>; url?: string; sticker_url?: string; sticker?: string }): IncomingMedia[] {
+export function extractMediaEntries(message: { photo_url?: string; voice_url?: string; attachments?: Array<Record<string, unknown>>; url?: string; sticker_url?: string; sticker?: string }): IncomingMedia[] {
   const entries: IncomingMedia[] = [];
   if (typeof message.photo_url === "string" && message.photo_url.startsWith("http")) {
     entries.push({ kind: "photo", url: message.photo_url });
+  }
+  // Voice notes (event message.voice.received): direct .aac URL in voice_url.
+  if (typeof message.voice_url === "string" && message.voice_url.startsWith("http")) {
+    entries.push({ kind: "voice", url: message.voice_url });
   }
   if (Array.isArray(message.attachments)) {
     for (const attachment of message.attachments) {
@@ -78,7 +82,7 @@ export async function downloadIncomingAttachment(
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
         Referer: "https://zzz3.zdn.vn/",
-        Accept: "image/*,application/octet-stream,*/*;q=0.8",
+        Accept: "image/*,audio/*,application/octet-stream,*/*;q=0.8",
       },
       redirect: "follow",
     });
