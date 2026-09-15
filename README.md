@@ -143,6 +143,9 @@ unpair, or reset the update offset so undelivered updates are replayed.
 - **Tool and thinking rendering**: by default, tool calls and thinking blocks render
   as brief inline lines. Set `tool=hidden` or `thinking=hidden` in `/zalo-config`
   (or `"tool": "hidden"` / `"thinking": "hidden"` in zalo.json) to suppress them.
+  This also covers the `pi-mcp-adapter` status/progress notifications that are
+  otherwise forwarded to chat (e.g. `MCP browserless/x#1: 2/4`); they are treated
+  as tool output, so `tool=hidden` keeps them out of the chat.
 - **Output rendering**: assistant markdown is converted to the Zalo-supported HTML
   subset (bold/italic/strike/lists/headings); messages longer than 2000 chars are
   split at line boundaries; thinking and tool calls render at their configured

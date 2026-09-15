@@ -109,7 +109,11 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
   };
 
   const transport = createZaloTransport(() => config.zaloToken);
-  const ui = createZaloUiRuntime({ getSession: getActiveSession, transport });
+  const ui = createZaloUiRuntime({
+    getSession: getActiveSession,
+    transport,
+    getToolLevel: () => config.tool ?? "brief",
+  });
 
   // ── Heartbeat (typing indicator) ──────────────────────────────────────────
   const heartbeat = createHeartbeat({

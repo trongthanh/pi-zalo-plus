@@ -6,7 +6,8 @@
 // are consumed by the dialog instead of starting a prompt.
 
 import type { ExtensionUIContext } from "@earendil-works/pi-coding-agent";
-import type { CapturedAgentSession, ZaloTransport } from "./types.ts";
+import type { CapturedAgentSession, ZaloRenderLevel, ZaloTransport } from "./types.ts";
+import { isMcpAdapterNotification } from "./mcp-filter.ts";
 import { log } from "./logger.ts";
 
 const uiLog = log.child("ui");
@@ -32,6 +33,9 @@ export type ZaloUiRuntime = {
 export function createZaloUiRuntime(deps: {
   getSession: () => CapturedAgentSession | undefined;
   transport: ZaloTransport;
+  /** Effective tool render level — MCP-adapter status/progress notifications are
+   *  suppressed when this is "hidden" (default "brief"). */
+  getToolLevel?: () => ZaloRenderLevel;
 }): ZaloUiRuntime {
   const pendingByTarget = new Map<string, Map<string, Pending>>();
   const latestFlowByTarget = new Map<string, string>();
@@ -97,6 +101,13 @@ export function createZaloUiRuntime(deps: {
       const base = deps.getSession()?.extensionRunner.getUIContext?.() as ExtensionUIContext | undefined;
 
       const notifyFn = (message: string, level: "info" | "warning" | "error" = "info") => {
+        // MCP-adapter status/progress (e.g. `MCP browserless/x#1: 2/4`) is tool
+        // output, so it follows the same render level as tool calls/results:
+        // nothing is sent to chat while tool rendering is off.
+        if ((deps.getToolLevel?.() ?? "brief") === "hidden" && isMcpAdapterNotification(message)) {
+          uiLog.debug("suppressed MCP notification (tool rendering hidden)", { chatId, message });
+          return;
+        }
         const icon = level === "error" ? "❌" : level === "warning" ? "⚠️" : "ℹ️";
         void deps.transport.sendText(chatId, `${icon} ${message}`).catch(uiLog.swallow("warn", "notify send failed", { chatId }));
       };

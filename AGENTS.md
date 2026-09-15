@@ -66,6 +66,7 @@ pi-zalo-plus/
     ├── controller.ts            # Message router & prompt executor
     ├── ui.ts                    # Interactive UI (notify, confirm, input, select)
     ├── renderer.ts              # Agent event → Zalo output renderer
+    ├── mcp-filter.ts            # MCP-adapter notification/tool detection
     ├── markdown.ts              # Markdown → Zalo HTML converter
     ├── html.ts                  # HTML escaping utilities
     ├── text-split.ts            # UTF-8-safe text splitter
@@ -95,6 +96,7 @@ pi-zalo-plus/
         ├── text-split.test.ts
         ├── markdown.test.ts
         ├── config.test.ts
-        └── command-parser.test.ts
+        ├── command-parser.test.ts
+        └── mcp-filter.test.ts
 ```
 
