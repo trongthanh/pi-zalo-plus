@@ -167,6 +167,11 @@ unpair, or reset the update offset so undelivered updates are replayed.
 
 ## Troubleshooting
 
+- **Re-enable after `/zalo off`** → run `/zalo on` in the local pi TUI. Disabling
+  Zalo pauses inbound polling and automatic outgoing messages, including typing
+  indicators. The off command can still send its acknowledgement. Re-enabling
+  takes effect on the next idle-loop check (normally within about a second),
+  including when pi was started with `"zalo_enabled": false`.
 - **A message containing a link gets an unsupported-message warning** → Zalo
   can send a link-preview message as `message.unsupported.received` with no text
   or URL. Dismiss the link preview in Zalo and resend the message as plain text.

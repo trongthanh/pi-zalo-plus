@@ -33,7 +33,10 @@ async function withRetry<T>(label: string, run: () => Promise<T>): Promise<T> {
   throw lastError;
 }
 
-export function createZaloTransport(getToken: () => string | undefined): ZaloTransportType {
+export function createZaloTransport(
+  getToken: () => string | undefined,
+  shouldSend: () => boolean = () => true,
+): ZaloTransportType {
   const token = () => {
     const value = getToken();
     if (!value) throw new Error("Zalo bot token is not configured");
@@ -45,15 +48,16 @@ export function createZaloTransport(getToken: () => string | undefined): ZaloTra
       const chunks = splitZaloText(html);
       const sent: ZaloSentMessage[] = [];
       for (let i = 0; i < chunks.length; i++) {
+        if (!shouldSend()) break;
         const chunk = chunks[i];
         if (!chunk.trim()) continue;
-        const message = await withRetry("sendMessage", () =>
-          sendMessage(token(), {
+        const message = await withRetry("sendMessage", async () =>
+          shouldSend() ? sendMessage(token(), {
             chatId,
             text: chunk,
             parseMode: "html",
             replyToMessageId: i === 0 ? options?.replyToMessageId : undefined,
-          }));
+          }) : undefined);
         if (message?.message_id) sent.push({ message_id: message.message_id });
       }
       return sent;
@@ -61,8 +65,9 @@ export function createZaloTransport(getToken: () => string | undefined): ZaloTra
 
     async editText(chatId, messageId, html) {
       try {
-        await withRetry("editMessageText", () =>
-          editMessageText(token(), { chatId, messageId, text: html, parseMode: "html" }));
+        await withRetry("editMessageText", async () => {
+          if (shouldSend()) await editMessageText(token(), { chatId, messageId, text: html, parseMode: "html" });
+        });
       } catch (error) {
         // Edits are best-effort (message may be unchanged/deleted).
         transportLog.debug("editText failed (ignored)", { chatId, messageId, error });
@@ -71,7 +76,9 @@ export function createZaloTransport(getToken: () => string | undefined): ZaloTra
 
     async deleteMessage(chatId, messageId) {
       try {
-        await withRetry("deleteMessage", () => deleteMessage(token(), chatId, messageId));
+        await withRetry("deleteMessage", async () => {
+          if (shouldSend()) await deleteMessage(token(), chatId, messageId);
+        });
       } catch (error) {
         transportLog.debug("deleteMessage failed (ignored)", { chatId, messageId, error });
       }
@@ -79,7 +86,7 @@ export function createZaloTransport(getToken: () => string | undefined): ZaloTra
 
     async sendChatAction(chatId, action) {
       try {
-        await sendChatAction(token(), chatId, action);
+        if (shouldSend()) await sendChatAction(token(), chatId, action);
       } catch (error) {
         transportLog.debug("sendChatAction failed (ignored)", { chatId, action, error });
       }

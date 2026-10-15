@@ -22,11 +22,14 @@ type PollingLockOwner = { id: string; pid: number; at: string; touchedAt: string
 
 const sleep = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve) => {
-    const timer = setTimeout(resolve, ms);
-    signal.addEventListener("abort", () => {
+    if (signal.aborted) { resolve(); return; }
+    const finish = () => {
       clearTimeout(timer);
+      signal.removeEventListener("abort", finish);
       resolve();
-    }, { once: true });
+    };
+    const timer = setTimeout(finish, ms);
+    signal.addEventListener("abort", finish, { once: true });
   });
 
 function lockPathForToken(token: string): string {
@@ -249,34 +252,36 @@ export function createZaloPollingRuntime(deps: ZaloUpdateBatchDeps & {
     let backoffMs = MIN_BACKOFF_MS;
     try {
       while (!signal.aborted) {
-        if (deps.shouldPoll && !deps.shouldPoll()) {
-          await releasePollLock();
-          await sleep(MIN_BACKOFF_MS, signal);
-          continue;
-        }
-        const token = deps.getConfig().zaloToken;
-        if (!token) {
-          await releasePollLock();
-          await sleep(MIN_BACKOFF_MS, signal);
-          continue;
-        }
-        if (!(await ensurePollLock(token))) {
-          deps.onError(new Error("Zalo polling skipped: another local pi instance is already polling this bot token."));
-          await sleep(MAX_BACKOFF_MS, signal);
-          continue;
-        }
         try {
+          // Refresh even while disabled, so startup-off and external config
+          // changes can be re-enabled without recreating the runtime.
           await deps.reloadConfig?.();
           if (signal.aborted) return;
-          const refreshedToken = deps.getConfig().zaloToken;
-          if (!refreshedToken || refreshedToken !== token) continue;
+          if (deps.shouldPoll && !deps.shouldPoll()) {
+            await releasePollLock();
+            await sleep(MIN_BACKOFF_MS, signal);
+            continue;
+          }
+          const token = deps.getConfig().zaloToken;
+          if (!token) {
+            await releasePollLock();
+            await sleep(MIN_BACKOFF_MS, signal);
+            continue;
+          }
+          if (!(await ensurePollLock(token))) {
+            deps.onError(new Error("Zalo polling skipped: another local pi instance is already polling this bot token."));
+            await sleep(MAX_BACKOFF_MS, signal);
+            continue;
+          }
+          if (signal.aborted || (deps.shouldPoll && !deps.shouldPoll())) continue;
+          if (deps.getConfig().zaloToken !== token) continue;
 
           const offset = deps.getConfig().lastUpdateId;
           const updates = await getUpdates(token, {
             timeoutSeconds: 25,
             offset: offset !== undefined ? offset + 1 : undefined,
           }, signal);
-          if (deps.getConfig().zaloToken !== refreshedToken) continue;
+          if (deps.getConfig().zaloToken !== token) continue;
           if (deps.shouldPoll && !deps.shouldPoll()) continue;
           backoffMs = MIN_BACKOFF_MS;
           deps.onSuccess?.();
@@ -297,7 +302,7 @@ export function createZaloPollingRuntime(deps: ZaloUpdateBatchDeps & {
 
   return {
     start() {
-      if (abort || (deps.shouldPoll && !deps.shouldPoll())) return;
+      if (abort) return;
       const controller = new AbortController();
       abort = controller;
       loopPromise = loop(controller.signal)
@@ -316,7 +321,8 @@ export function createZaloPollingRuntime(deps: ZaloUpdateBatchDeps & {
       if (abort === controller) abort = undefined;
     },
     isActive() {
-      return !!abort;
+      return !!abort && !abort.signal.aborted && !!deps.getConfig().zaloToken
+        && (deps.shouldPoll?.() ?? true);
     },
   };
 }
