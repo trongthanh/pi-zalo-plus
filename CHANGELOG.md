@@ -1,5 +1,28 @@
 # pi-zalo-plus
 
+## 1.1.0
+
+### Minor Changes
+
+- Convert common LaTeX notation inside explicit math spans to readable Unicode
+  for Zalo, preserving code spans and blocks.
+- Make incoming attachment acknowledgements respect tool rendering: hidden mode
+  shows only media type and readable size (KB minimum), while brief/full modes
+  retain detailed receipts. Saved paths remain available to the agent.
+
+### Fixes
+
+- Honor `/zalo off` for automatic outgoing messages and typing indicators, and
+  resume polling after `/zalo on` even when pi started with Zalo disabled.
+- Prevent stale config reads from undoing local on/off changes. The disabled
+  acknowledgement now explains how to re-enable from the local TUI.
+- Give concurrent downloads unique filenames to prevent image overwrites.
+- Improve unsupported-message guidance for link previews whose content Zalo
+  omits; document removing the preview and resending as plain text.
+- Add multi-image delivery diagnostics and regression tests. Missing image
+  events from Zalo polling remain a known limitation: send images individually
+  and wait for each acknowledgement before sending the next (issue #4).
+
 ## 1.0.1
 
 ### Patch Changes

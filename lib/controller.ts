@@ -6,9 +6,9 @@
 
 import type { ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import { parseLeadingCommand } from "./command-parser.ts";
-import type { CapturedAgentSession, ZaloCommandHandler, ZaloIncomingMessage, ZaloMessageMode, ZaloTransport, ZaloTurn } from "./types.ts";
+import type { CapturedAgentSession, ZaloCommandHandler, ZaloIncomingMessage, ZaloMessageMode, ZaloRenderLevel, ZaloTransport, ZaloTurn } from "./types.ts";
 import type { ZaloUiRuntime } from "./ui.ts";
-import { extractMediaEntries, type IncomingMedia } from "./attachments.ts";
+import { extractMediaEntries, formatAttachmentSize, type DownloadedAttachment, type IncomingMedia } from "./attachments.ts";
 import { log } from "./logger.ts";
 import { commandErrorMessage, getRunnerMode, setRunnerUiContext, ZALO_EXTENSION_MODE } from "./pi-compat.ts";
 import { getCurrentZaloTurn, runWithZaloTurn } from "./turn-context.ts";
@@ -30,8 +30,9 @@ const KNOWN_MESSAGE_EVENTS = new Set([
 // a voice_url — handled like other media.)
 const UNSUPPORTED_EVENT = "message.unsupported.received";
 const UNSUPPORTED_REPLY_TEXT = [
-  "🤖 Xin lỗi, mình không đọc được loại tin nhắn này (Zalo Bot API không hỗ trợ nội dung đính kèm dạng này).",
-  "Zalo Bot API hiện chỉ hỗ trợ nhận file ảnh, sticker và tin nhắn thoại.",
+  "🤖 Xin lỗi, mình không đọc được nội dung tin nhắn này vì Zalo Bot API không cung cấp nội dung.",
+  "Nếu bạn gửi đường link có bản xem trước, hãy xoá bản xem trước rồi gửi lại.",
+  "Với nội dung đính kèm khác, hãy thử gửi lại dưới dạng văn bản hoặc ảnh.",
 ].join("\n");
 
 // ── Routed UI stack (adapted from pi-telegram-plus controller UI swap) ────────
@@ -152,12 +153,13 @@ export function createZaloController(deps: {
   setActiveChatId(chatId: string): Promise<void>;
   getBotName(): string | undefined;
   getMessageMode: () => ZaloMessageMode;
+  getToolRenderLevel?: () => ZaloRenderLevel;
   zaloCommands: Map<string, ZaloCommandHandler>;
   getActiveTurn(chatId: string): ZaloTurn | undefined;
   beginZaloTurn(chatId: string, sourceMessageId?: string): ZaloTurn | undefined;
   endZaloTurn(chatId: string, turn: ZaloTurn): void;
   onTurnActivity?: () => void;
-  downloadIncomingAttachment?: (media: IncomingMedia) => Promise<string>;
+  downloadIncomingAttachment?: (media: IncomingMedia) => Promise<DownloadedAttachment>;
 }): {
   handleMessage(message: ZaloIncomingMessage, eventName?: string): Promise<void>;
 } {
@@ -403,23 +405,36 @@ export function createZaloController(deps: {
       const mediaEntries = extractMediaEntries(message);
       const downloadedLines: string[] = [];
       const failedLines: string[] = [];
+      const minimalReceipts: string[] = [];
       if (mediaEntries.length > 0) {
+        ctrlLog.info("media entries extracted", {
+          sourceMessageId,
+          count: mediaEntries.length,
+          kinds: mediaEntries.map((media) => media.kind),
+        });
         const results = await Promise.allSettled(
           mediaEntries.map((media) => deps.downloadIncomingAttachment!(media)),
         );
         for (let i = 0; i < mediaEntries.length; i++) {
           const media = mediaEntries[i];
           const result = results[i];
+          const label = media.kind === "photo" || media.kind === "image" ? "Image"
+            : media.kind === "voice" ? "Voice message"
+            : media.kind === "sticker" ? "Sticker" : "Attachment";
           if (result.status === "fulfilled" && result.value) {
-            downloadedLines.push(`- ${media.kind}: ${media.fileName ?? media.url} => ${result.value}`);
+            downloadedLines.push(`- ${media.kind}: ${media.fileName ?? media.url} => ${result.value.path}`);
+            minimalReceipts.push(`✅ ${label} received (${formatAttachmentSize(result.value.bytes)}).`);
           } else {
             const reason = result.status === "rejected"
               ? result.reason instanceof Error ? result.reason.message : String(result.reason)
               : "download failed";
             failedLines.push(`- ${media.kind}: ${media.fileName ?? media.url} -> failed to save (${reason})`);
+            minimalReceipts.push(`⚠️ ${label} could not be saved. Please resend.`);
+            ctrlLog.warn("attachment not saved", { sourceMessageId, kind: media.kind, reason });
           }
         }
-        const lines = [
+        // Keep local paths in the agent prompt, not in hidden-mode chat receipts.
+        const lines = deps.getToolRenderLevel?.() === "hidden" ? minimalReceipts.join("\n") : [
           downloadedLines.length > 0 ? "✅ Saved attachments (local paths):\n" + downloadedLines.join("\n") : "",
           failedLines.length > 0 ? "⚠️ Attachments not saved:\n" + failedLines.join("\n") : "",
         ].filter(Boolean).join("\n\n");

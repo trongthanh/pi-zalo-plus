@@ -70,6 +70,8 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
   runtimeState.dispose?.();
 
   let config: ZaloConfig = {};
+  let configRevision = 0;
+  let pendingConfigWrites = 0;
   let disposed = false;
   let lastStatusError: string | undefined;
   const activeTurns = new Map<string, ZaloTurn>();
@@ -81,7 +83,10 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
     const messageId = update.message?.message_id;
     if (!messageId) return false;
     const key = `${update.event_name ?? ""}:${messageId}`;
-    if (seenUpdates.has(key)) return true;
+    if (seenUpdates.has(key)) {
+      indexLog.info("duplicate update dropped", { eventName: update.event_name, messageId });
+      return true;
+    }
     seenUpdates.set(key, Date.now());
     if (seenUpdates.size > 500) {
       const cutoff = Date.now() - 10 * 60_000;
@@ -94,13 +99,19 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
 
   const setConfig = (next: ZaloConfig) => {
     config = next;
+    configRevision++;
     refreshStatus();
   };
 
   const persistConfig = async (next = config): Promise<void> => {
-    config = next;
-    await writeZaloConfig(next).catch(indexLog.swallow("warn", "persist zalo config failed"));
-    refreshStatus();
+    pendingConfigWrites++;
+    setConfig(next);
+    try {
+      await writeZaloConfig(next).catch(indexLog.swallow("warn", "persist zalo config failed"));
+    } finally {
+      pendingConfigWrites--;
+      refreshStatus();
+    }
   };
 
   const sessionCwd = (): string => {
@@ -108,7 +119,10 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
     return session?.extensionRunner?.createCommandContext?.().cwd ?? process.cwd();
   };
 
-  const transport = createZaloTransport(() => config.zaloToken);
+  const isEnabled = () => !disposed && !!config.zaloToken && isZaloEnabled(config);
+  const transport = createZaloTransport(() => config.zaloToken, isEnabled);
+  // Explicit chat-command replies remain available to acknowledge `/zalo off`.
+  const commandTransport = createZaloTransport(() => config.zaloToken, () => !disposed);
   const ui = createZaloUiRuntime({ getSession: getActiveSession, transport });
 
   // ── Heartbeat (typing indicator) ──────────────────────────────────────────
@@ -146,7 +160,7 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
   // ── Chat command handlers (used from Zalo messages) ───────────────────────
   const sendChatReply = (text: string) => {
     if (!config.activeChatId) return;
-    void transport.sendText(config.activeChatId, text)
+    void commandTransport.sendText(config.activeChatId, text)
       .catch(indexLog.swallow("warn", "chat command reply failed"));
   };
 
@@ -186,6 +200,7 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
     },
     getBotName: () => config.botName,
     getMessageMode: () => config.messageMode ?? "steer",
+    getToolRenderLevel: () => config.tool ?? "brief",
     zaloCommands,
     getActiveTurn: (chatId) => activeTurns.get(chatId),
     beginZaloTurn: (chatId, sourceMessageId) => {
@@ -215,11 +230,15 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
     setConfig,
     persistUpdate: async (nextConfig) => { await persistConfig(nextConfig); },
     reloadConfig: async () => {
+      // A command changes memory before its atomic write completes. Never
+      // replace it with an older disk snapshot read during or before that write.
+      if (pendingConfigWrites > 0) return;
+      const revision = configRevision;
       const fresh = await readZaloConfig().catch(() => undefined);
-      if (fresh) { config = fresh; refreshStatus(); }
+      if (fresh && pendingConfigWrites === 0 && configRevision === revision) setConfig(fresh);
     },
-    shouldPoll: () => !disposed && !!config.zaloToken && isZaloEnabled(config),
-    shouldProcess: () => !disposed,
+    shouldPoll: isEnabled,
+    shouldProcess: isEnabled,
     handleUpdate: async (update) => {
       const hasText = !!update.message?.text;
       indexLog.info("update received", {

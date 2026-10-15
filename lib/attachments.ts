@@ -4,6 +4,7 @@
 // Handles the Zalo CDN edge case where cold edge nodes return 200 with empty
 // body by retrying with backoff.
 
+import { randomUUID } from "node:crypto";
 import { writeFile, mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
@@ -18,6 +19,22 @@ export type IncomingMedia = {
   url: string;
   fileName?: string;
 };
+
+export type DownloadedAttachment = { path: string; bytes: number };
+
+/** Human-readable decimal file size; KB is the smallest displayed unit. */
+export function formatAttachmentSize(bytes: number): string {
+  const units = ["KB", "MB", "GB", "TB"];
+  let size = bytes / 1000;
+  let unit = 0;
+  // Promote values that would otherwise round to "1,000 KB", etc.
+  while (size >= 999.95 && unit < units.length - 1) {
+    size /= 1000;
+    unit++;
+  }
+  const maximumFractionDigits = size > 0 && size < 1 ? 3 : 1;
+  return `${size.toLocaleString("en-US", { maximumFractionDigits })} ${units[unit]}`;
+}
 
 /** Extract media entries from an incoming Zalo message. */
 export function extractMediaEntries(message: { photo_url?: string; voice_url?: string; attachments?: Array<Record<string, unknown>>; url?: string; sticker_url?: string; sticker?: string }): IncomingMedia[] {
@@ -67,14 +84,15 @@ export function resolveDownloadDir(config: ZaloConfig, sessionCwd: () => string)
 export async function downloadIncomingAttachment(
   media: IncomingMedia,
   downloadDir: string,
-): Promise<string> {
+): Promise<DownloadedAttachment> {
   await mkdir(downloadDir, { recursive: true });
   const base = (media.fileName ?? `${media.kind}-${Date.now()}`)
     .replace(/[^a-zA-Z0-9._-]/g, "_")
     .slice(0, 100);
   const extMatch = media.url.match(/\.([a-zA-Z0-9]{1,8})(?:[?#]|$)/);
   const name = extMatch && !base.includes(".") ? `${base}.${extMatch[1]}` : base;
-  const outputPath = resolve(downloadDir, `${Date.now()}-${name}`);
+  // Concurrent images can share both a timestamp and a filename.
+  const outputPath = resolve(downloadDir, `${Date.now()}-${randomUUID()}-${name}`);
 
   const fetchOnce = async (): Promise<Buffer> => {
     const response = await fetch(media.url, {
@@ -100,8 +118,9 @@ export async function downloadIncomingAttachment(
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const buffer = await fetchOnce();
-      await writeFile(outputPath, buffer);
-      return outputPath;
+      await writeFile(outputPath, buffer, { flag: "wx" });
+      attachLog.info("attachment saved", { kind: media.kind, path: outputPath, bytes: buffer.length, attempt });
+      return { path: outputPath, bytes: buffer.length };
     } catch (error) {
       lastError = error;
       attachLog.warn(`attachment download attempt ${attempt}/3 failed`, {

@@ -48,7 +48,9 @@ export function registerZaloCommands(
       }
       if (sub === "on" || sub === "off") {
         await persistConfig({ ...config, zaloEnabled: sub === "on" });
-        ui.notify(`Zalo bot ${sub === "on" ? "enabled" : "disabled"}.`, "info");
+        ui.notify(sub === "on"
+          ? "Zalo bot enabled."
+          : "Zalo bot disabled. To re-enable, run /zalo on in the local pi TUI (terminal).", "info");
         return;
       }
       if (sub === "pair") {
@@ -111,7 +113,9 @@ export function buildChatZaloCommandHandler(
     }
     if (sub === "on" || sub === "off") {
       await persistConfig({ ...config, zaloEnabled: sub === "on" });
-      reply(`Zalo bot ${sub === "on" ? "enabled" : "disabled"}.`);
+      reply(sub === "on"
+        ? "Zalo bot enabled."
+        : "Zalo bot disabled. To re-enable, run /zalo on in the local pi TUI (terminal).");
       return;
     }
     if (sub === "pair" || sub === "unpair" || sub === "locked") {
