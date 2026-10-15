@@ -30,8 +30,9 @@ const KNOWN_MESSAGE_EVENTS = new Set([
 // a voice_url — handled like other media.)
 const UNSUPPORTED_EVENT = "message.unsupported.received";
 const UNSUPPORTED_REPLY_TEXT = [
-  "🤖 Xin lỗi, mình không đọc được loại tin nhắn này (Zalo Bot API không hỗ trợ nội dung đính kèm dạng này).",
-  "Zalo Bot API hiện chỉ hỗ trợ nhận file ảnh, sticker và tin nhắn thoại.",
+  "🤖 Xin lỗi, mình không đọc được nội dung tin nhắn này vì Zalo Bot API không cung cấp nội dung.",
+  "Nếu bạn gửi đường link có bản xem trước, hãy xoá bản xem trước rồi gửi lại.",
+  "Với nội dung đính kèm khác, hãy thử gửi lại dưới dạng văn bản hoặc ảnh.",
 ].join("\n");
 
 // ── Routed UI stack (adapted from pi-telegram-plus controller UI swap) ────────

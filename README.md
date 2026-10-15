@@ -167,6 +167,11 @@ unpair, or reset the update offset so undelivered updates are replayed.
 
 ## Troubleshooting
 
+- **A message containing a link gets an unsupported-message warning** → Zalo
+  can send a link-preview message as `message.unsupported.received` with no text
+  or URL. Dismiss the link preview in Zalo and resend the message as plain text.
+  The extension forwards text whenever the API supplies it, but cannot recover
+  content omitted by Zalo.
 - **401 Unauthorized in logs** → the `bot_token` in `zalo.json` was regenerated in
   the bot console; paste the new token and restart pi.
 - **"Zalo polling skipped: another local pi instance is already polling"** → a

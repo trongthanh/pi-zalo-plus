@@ -17,7 +17,11 @@ function makeController(overrides: Partial<ControllerDeps> = {}) {
       extensionRunner: { getUIContext: () => ({}), setUIContext: () => undefined },
     }) as unknown as CapturedAgentSession,
     transport: { sendText } as unknown as ZaloTransport,
-    ui: { create: () => ({}) } as unknown as ZaloUiRuntime,
+    ui: {
+      create: () => ({}),
+      isSensitiveInput: () => false,
+      resolveInput: () => ({ handled: false }),
+    } as unknown as ZaloUiRuntime,
     authorizeUser: async () => true,
     setActiveChatId: async () => undefined,
     getBotName: () => "bot",
@@ -50,10 +54,23 @@ describe("unsupported message auto-reply", () => {
     const [chatId, text, opts] = sendText.mock.calls[0] as [string, string, { replyToMessageId?: string }];
     expect(chatId).toBe("chat-1");
     expect(text).toContain("không đọc được");
+    expect(text).toContain("xoá bản xem trước rồi gửi lại");
     expect(opts.replyToMessageId).toBe("msg-1");
     // No LLM turn is spawned for unsupported content.
     expect(prompt).not.toHaveBeenCalled();
   });
+
+  it.each(["message.unsupported.received", "message.text.received"])(
+    "forwards link text without an unsupported warning for %s",
+    async (eventName) => {
+      const { controller, sendText, prompt } = makeController();
+      const text = "Please check https://example.com/article";
+      await controller.handleMessage({ ...bareMessage(), text }, eventName);
+      await vi.waitFor(() => expect(prompt).toHaveBeenCalledTimes(1));
+      expect(prompt.mock.calls[0][0]).toBe(text);
+      expect(sendText).not.toHaveBeenCalled();
+    },
+  );
 
   it("stays silent for known contentless events (e.g. image handled upstream)", async () => {
     const { controller, sendText } = makeController();
