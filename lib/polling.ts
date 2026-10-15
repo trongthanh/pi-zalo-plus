@@ -283,6 +283,15 @@ export function createZaloPollingRuntime(deps: ZaloUpdateBatchDeps & {
           }, signal);
           if (deps.getConfig().zaloToken !== token) continue;
           if (deps.shouldPoll && !deps.shouldPoll()) continue;
+          if (updates.length > 0) {
+            pollLog.info("poll batch", {
+              count: updates.length,
+              events: updates.map((update) => ({
+                eventName: update.event_name,
+                messageId: update.message?.message_id,
+              })),
+            });
+          }
           backoffMs = MIN_BACKOFF_MS;
           deps.onSuccess?.();
 

@@ -109,6 +109,20 @@ describe("polling enable/disable lifecycle", () => {
     expect(test.onError).not.toHaveBeenCalled();
   });
 
+  it.each(["one batch", "successive polls"])("processes both image events in %s", async (delivery) => {
+    const images: ZaloUpdate[] = [
+      { event_name: "message.image.received", message: { message_id: "image-one", photo_url: "https://example.com/one.png" } },
+      { event_name: "message.image.received", message: { message_id: "image-two", photo_url: "https://example.com/two.png" } },
+    ];
+    const test = setup(true);
+    if (delivery === "one batch") vi.mocked(getUpdates).mockResolvedValueOnce(images);
+    else vi.mocked(getUpdates).mockResolvedValueOnce([images[0]]).mockResolvedValueOnce([images[1]]);
+    test.runtime.start();
+    await vi.waitFor(() => expect(test.handleUpdate).toHaveBeenCalledTimes(2));
+    expect(test.handleUpdate.mock.calls.map(([update]) => update)).toEqual(images);
+    expect(test.onError).not.toHaveBeenCalled();
+  });
+
   it("stops processing the rest of a batch after disable", async () => {
     const test = setup(true);
     vi.mocked(getUpdates).mockResolvedValueOnce([

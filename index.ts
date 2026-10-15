@@ -83,7 +83,10 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
     const messageId = update.message?.message_id;
     if (!messageId) return false;
     const key = `${update.event_name ?? ""}:${messageId}`;
-    if (seenUpdates.has(key)) return true;
+    if (seenUpdates.has(key)) {
+      indexLog.info("duplicate update dropped", { eventName: update.event_name, messageId });
+      return true;
+    }
     seenUpdates.set(key, Date.now());
     if (seenUpdates.size > 500) {
       const cutoff = Date.now() - 10 * 60_000;
@@ -197,6 +200,7 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
     },
     getBotName: () => config.botName,
     getMessageMode: () => config.messageMode ?? "steer",
+    getToolRenderLevel: () => config.tool ?? "brief",
     zaloCommands,
     getActiveTurn: (chatId) => activeTurns.get(chatId),
     beginZaloTurn: (chatId, sourceMessageId) => {

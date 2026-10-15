@@ -143,6 +143,10 @@ unpair, or reset the update offset so undelivered updates are replayed.
 - **Tool and thinking rendering**: by default, tool calls and thinking blocks render
   as brief inline lines. Set `tool=hidden` or `thinking=hidden` in `/zalo-config`
   (or `"tool": "hidden"` / `"thinking": "hidden"` in zalo.json) to suppress them.
+  With tool rendering hidden, incoming attachment receipts show only the media
+  type and readable downloaded size (KB minimum, switching to MB for larger
+  files), not local paths or source URLs. The agent still
+  receives saved paths; brief/full tool rendering keeps detailed receipts.
 - **Output rendering**: assistant markdown is converted to the Zalo-supported HTML
   subset (bold/italic/strike/lists/headings); messages longer than 2000 chars are
   split at line boundaries; thinking and tool calls render at their configured
@@ -167,6 +171,14 @@ unpair, or reset the update offset so undelivered updates are replayed.
 
 ## Troubleshooting
 
+- **Only one of several sent images arrives** → missing image events have been
+  observed with Zalo long polling. Send images one at a time and wait for each
+  saved-attachment acknowledgement (`✅ Image received (206.7 KB).` with tool
+  rendering hidden, or `✅ Saved attachments` otherwise) before sending the next. Resend any
+  image that was not acknowledged. Logs record poll batches, duplicate drops,
+  extracted media counts, and saved files to help distinguish delivery from
+  download failures. If Zalo never delivers an event, the extension cannot
+  detect or recover the missing image. See [issue #4](https://github.com/trongthanh/pi-zalo-plus/issues/4).
 - **Re-enable after `/zalo off`** → run `/zalo on` in the local pi TUI. Disabling
   Zalo pauses inbound polling and automatic outgoing messages, including typing
   indicators. The off command can still send its acknowledgement. Re-enabling
