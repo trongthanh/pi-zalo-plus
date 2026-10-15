@@ -6,6 +6,7 @@
 // supported tags and escape everything else, including code blocks (rendered
 // as preformatted plain text lines).
 
+import { latexToUnicode } from "@devhub-io/latex-to-unicode";
 import { escapeHtml } from "./html.ts";
 
 type Extracted = { text: string; restore: (input: string) => string };
@@ -51,6 +52,17 @@ function renderLine(line: string): string {
   return line;
 }
 
+function renderMath(text: string): string {
+  const convert = (_match: string, math: string): string => latexToUnicode(math, { latexCheck: false });
+  let out = text;
+  // Convert only explicit math spans; code is already protected by extractCode().
+  out = out.replace(/\$\$([\s\S]+?)\$\$/g, convert);
+  out = out.replace(/\\\[([\s\S]+?)\\\]/g, convert);
+  out = out.replace(/\\\(([\s\S]+?)\\\)/g, convert);
+  out = out.replace(/\$(?!\$)([^$\n]+?)\$(?!\$)/g, convert);
+  return out;
+}
+
 function renderInline(text: string): string {
   let out = text;
   // Links [text](url) → text (url)
@@ -73,7 +85,7 @@ function renderInline(text: string): string {
 export function markdownToZaloHtml(markdown: string): string {
   if (!markdown) return "";
   const { text, restore } = extractCode(markdown);
-  const escaped = escapeHtml(text);
+  const escaped = escapeHtml(renderMath(text));
   const lines = escaped.split(/\r?\n/).map((line) => {
     const rendered = renderInline(renderLine(line));
     return rendered;
