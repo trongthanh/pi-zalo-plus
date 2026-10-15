@@ -20,6 +20,19 @@ describe("markdownToZaloHtml", () => {
     expect(markdownToZaloHtml("[text](https://example.com)")).toBe("text (https://example.com)");
   });
 
+  it("converts explicit LaTeX math spans to readable Unicode", () => {
+    expect(markdownToZaloHtml("SỬ-ĐỊA $\\rightarrow$ Giữ lại Lịch sử và Địa lí")).toBe(
+      "SỬ-ĐỊA → Giữ lại Lịch sử và Địa lí",
+    );
+    expect(markdownToZaloHtml("$\\alpha + \\beta$ = $x^2$")).toBe("α + β = x²");
+    expect(markdownToZaloHtml("\\(\\frac{a}{b}\\)")).toBe("a/b");
+    expect(markdownToZaloHtml("\\alpha stays raw outside math")).toBe("\\alpha stays raw outside math");
+  });
+
+  it("does not convert LaTeX inside code spans", () => {
+    expect(markdownToZaloHtml("`$\\rightarrow$`")).toBe("$\\rightarrow$");
+  });
+
   it("preserves code blocks as escaped text", () => {
     const result = markdownToZaloHtml("```\nconst x = 1;\n```");
     expect(result).toContain("const x = 1;");

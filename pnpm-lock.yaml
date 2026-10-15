@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@devhub-io/latex-to-unicode':
+        specifier: ^2.0.1
+        version: 2.0.1
       '@earendil-works/pi-coding-agent':
         specifier: '>=0.76.0 <0.82.0'
         version: 0.81.1(ws@8.21.3)(zod@4.5.4)
@@ -26,6 +29,9 @@ importers:
         version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@22.20.1)(vite@8.2.2(@types/node@22.20.1)(jiti@2.7.0)(yaml@2.9.0))
 
 packages:
+
+  '@devhub-io/latex-to-unicode@2.0.1':
+    resolution: {integrity: sha512-TIf7mt5tTxE1OvmjpgCg2fCLvcqprPgJu1YvYkD6hj83L5TYrvQYvnuLRQgB3CdDEIueZDl4eZYrkGmmBixF1Q==}
 
   '@anthropic-ai/sdk@0.91.1':
     resolution: {integrity: sha512-LAmu761tSN9r66ixvmciswUj/ZC+1Q4iAfpedTfSVLeswRwnY3n2Nb6Tsk+cLPP28aLOPWeMgIuTuCcMC6W/iw==}
@@ -1132,6 +1138,8 @@ packages:
     resolution: {integrity: sha512-sC95tT5iHHH9gtpj6A81kh+NEaRAUFN+qlUPDUbRfOMvNf5QCBqsb3WgvnpVtK5Y+4UfA6KqufotuTvMGiTlsA==}
 
 snapshots:
+
+  '@devhub-io/latex-to-unicode@2.0.1': {}
 
   '@anthropic-ai/sdk@0.91.1(zod@4.5.4)':
     dependencies:
