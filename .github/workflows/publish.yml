@@ -1,0 +1,55 @@
+name: Publish to npm
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check for version change
+        id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          current=$(node -p "require('./package.json').version")
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            previous=''
+          else
+            previous=$(git show "$BEFORE:package.json" | node -e "let data = ''; process.stdin.on('data', chunk => data += chunk); process.stdin.on('end', () => console.log(JSON.parse(data).version))")
+          fi
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] || [ "$current" != "$previous" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Version unchanged ($current); skipping publication."
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.version.outputs.publish == 'true'
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - name: Install dependencies
+        if: steps.version.outputs.publish == 'true'
+        run: npm ci
+      - name: Publish
+        if: steps.version.outputs.publish == 'true'
+        run: npm publish
