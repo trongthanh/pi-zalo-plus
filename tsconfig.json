@@ -12,11 +12,8 @@
     "forceConsistentCasingInFileNames": true,
     "allowImportingTsExtensions": true,
     "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "paths": {
-      "@earendil-works/pi-coding-agent": ["/usr/local/lib/node_modules/@earendil-works/pi-coding-agent/dist/core/index.d.ts"]
-    }
+    "noUnusedParameters": true
   },
-  "include": ["index.ts", "lib/**/*.ts", "pi-host.d.ts"],
+  "include": ["index.ts", "lib/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

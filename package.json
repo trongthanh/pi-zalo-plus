@@ -19,24 +19,24 @@
   "files": [
     "index.ts",
     "lib/**/*.ts",
-    "!lib/__tests__/",
-    "pi-host.d.ts"
+    "!lib/__tests__/"
   ],
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:pi": "node --test scripts/test-pi-runtime.mjs",
     "test:watch": "vitest",
     "prepublishOnly": "npm test && npm run typecheck"
   },
   "devDependencies": {
+    "@earendil-works/pi-coding-agent": "1.5.2",
     "@types/node": "^22.0.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.8"
   },
   "peerDependencies": {
-    "@earendil-works/pi-coding-agent": ">=0.84.0",
-    "typebox": "*"
+    "@earendil-works/pi-coding-agent": "*"
   },
   "engines": {
     "node": ">=22.19.0"

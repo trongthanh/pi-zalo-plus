@@ -14,7 +14,11 @@ function makeController(overrides: Partial<ControllerDeps> = {}) {
     getSession: () => ({
       prompt,
       // Minimal runner stub so the queue-mode prompt path can build its UI context.
-      extensionRunner: { getUIContext: () => ({}), setUIContext: () => undefined },
+      extensionRunner: {
+        createContext: () => ({ mode: "tui" }),
+        getUIContext: () => ({}),
+        setUIContext: () => undefined,
+      },
     }) as unknown as CapturedAgentSession,
     transport: { sendText } as unknown as ZaloTransport,
     ui: {

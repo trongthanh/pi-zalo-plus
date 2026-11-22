@@ -1,32 +1,6 @@
 // Compatibility helpers for reaching into pi runtime internals.
 // Adapted from pi-telegram-plus/lib/pi-compat.ts (Zalo-specific subset).
 
-export type PiExtensionMode = "tui" | "rpc" | "json" | "print" | string;
-
-export const ZALO_EXTENSION_MODE: PiExtensionMode = "rpc";
-
-type RunnerLike = {
-  getUIContext?(): unknown;
-  setUIContext?(ui?: unknown, mode?: PiExtensionMode): void;
-  createContext?(): { mode?: PiExtensionMode };
-  mode?: PiExtensionMode;
-};
-
-export function getRunnerMode(runner: RunnerLike | undefined, fallback: PiExtensionMode = "tui"): PiExtensionMode {
-  try {
-    const mode = runner?.createContext?.().mode;
-    if (typeof mode === "string") return mode;
-  } catch {
-    // Disposed runners may throw; fall through.
-  }
-  return typeof runner?.mode === "string" ? runner.mode : fallback;
-}
-
-export function setRunnerUiContext(runner: RunnerLike | undefined, ui: unknown, mode: PiExtensionMode = ZALO_EXTENSION_MODE): void {
-  if (typeof runner?.setUIContext !== "function") return;
-  runner.setUIContext(ui, mode);
-}
-
 function redactKnownTokenPrefix(value: string): string {
   if (value.startsWith("sk-")) return "sk-…";
   if (value.startsWith("AIza")) return "AIza…";

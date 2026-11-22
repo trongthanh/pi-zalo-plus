@@ -4,6 +4,7 @@
 
 import { AgentSession } from "@earendil-works/pi-coding-agent";
 import type { CapturedAgentSession } from "./types.ts";
+import { getCurrentZaloTurn } from "./turn-context.ts";
 
 type SessionCaptureState = {
   activeSession?: CapturedAgentSession;
@@ -23,23 +24,25 @@ export function installAgentSessionCapture(): void {
   if (state.installed) return;
   state.installed = true;
 
-  const proto = AgentSession.prototype as CapturedAgentSession & {
-    bindExtensions: AgentSession["bindExtensions"];
-  };
+  const proto = AgentSession.prototype;
   const originalBindExtensions = proto.bindExtensions;
 
-  proto.bindExtensions = async function patchedBindExtensions(this: CapturedAgentSession, bindings) {
+  proto.bindExtensions = function patchedBindExtensions(this: AgentSession, bindings) {
     state.activeSession = this;
-    const result = await originalBindExtensions.call(this, bindings);
-    // A remote-triggered shutdown must not kill the local TUI event loop.
-    const runner = this.extensionRunner as unknown as Record<string, unknown> & {
-      getUIContext?: () => { notify(message: string, type?: string): void };
-      shutdownHandler?: () => void;
-    };
-    runner.shutdownHandler = () => {
-      runner.getUIContext?.().notify("⚠️ Shutdown requested. Use Ctrl+C in the terminal to stop pi.", "info");
-    };
-    return result;
+    const { shutdownHandler } = bindings;
+    if (!shutdownHandler) return originalBindExtensions.call(this, bindings);
+    // Wrap the host binding, not a private runner field. Pi carries the binding
+    // forward when /reload creates a new runner for the same session.
+    return originalBindExtensions.call(this, {
+      ...bindings,
+      shutdownHandler: () => {
+        if (!getCurrentZaloTurn()) {
+          shutdownHandler();
+          return;
+        }
+        this.extensionRunner.getUIContext().notify("Remote shutdown blocked. Stop pi from the terminal.", "warning");
+      },
+    });
   };
 }
 
