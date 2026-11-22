@@ -54,8 +54,8 @@ pi-zalo-plus/
 ├── package.json
 ├── tsconfig.json
 ├── vitest.config.ts
-├── pi-host.d.ts                 # Type augmentation
 ├── scripts/
+│   ├── test-pi-runtime.mjs       # Real Pi smoke test with mock Zalo API
 │   └── test-routed-ui-spread.mjs  # Routed UI proxy regression test
 ├── .pi/
 │   └── settings.json            # pi package registration

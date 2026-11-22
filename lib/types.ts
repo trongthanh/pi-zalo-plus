@@ -104,9 +104,4 @@ export type ZaloTransport = {
   sendChatAction(chatId: string, action: string): Promise<void>;
 };
 
-export type CapturedAgentSession = import("@earendil-works/pi-coding-agent").AgentSession & {
-  extensionRunner: import("@earendil-works/pi-coding-agent").AgentSession["extensionRunner"] & {
-    getUIContext(): import("@earendil-works/pi-coding-agent").ExtensionUIContext;
-    setUIContext(ui?: import("@earendil-works/pi-coding-agent").ExtensionUIContext, mode?: string): void;
-  };
-};
+export type CapturedAgentSession = import("@earendil-works/pi-coding-agent").AgentSession;

@@ -4,13 +4,13 @@
 // into the chat. Adapted from pi-telegram-plus/lib/controller.ts for Zalo
 // (string IDs, no threads/callback queries, text-based dialogs).
 
-import type { ExtensionUIContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext, ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import { parseLeadingCommand } from "./command-parser.ts";
 import type { CapturedAgentSession, ZaloCommandHandler, ZaloIncomingMessage, ZaloMessageMode, ZaloRenderLevel, ZaloTransport, ZaloTurn } from "./types.ts";
 import type { ZaloUiRuntime } from "./ui.ts";
 import { extractMediaEntries, formatAttachmentSize, type DownloadedAttachment, type IncomingMedia } from "./attachments.ts";
 import { log } from "./logger.ts";
-import { commandErrorMessage, getRunnerMode, setRunnerUiContext, ZALO_EXTENSION_MODE } from "./pi-compat.ts";
+import { commandErrorMessage } from "./pi-compat.ts";
 import { getCurrentZaloTurn, runWithZaloTurn } from "./turn-context.ts";
 
 const ctrlLog = log.child("controller");
@@ -44,8 +44,8 @@ type ZaloUiStackEntry = {
 };
 
 type ZaloUiStackState = {
-  baseUi: unknown;
-  baseMode: string;
+  baseUi: ExtensionUIContext;
+  baseMode: ExtensionContext["mode"];
   entries: ZaloUiStackEntry[];
 };
 
@@ -55,23 +55,27 @@ function isSameZaloTurnTarget(currentTurn: ZaloTurn | undefined, turn: ZaloTurn)
   return currentTurn?.chatId === turn.chatId && currentTurn?.sourceMessageId === turn.sourceMessageId;
 }
 
-function createRoutedZaloUi(baseUi: unknown, zaloUi: ExtensionUIContext, turn: ZaloTurn): ExtensionUIContext {
+function createRoutedZaloUi(baseUi: ExtensionUIContext, zaloUi: ExtensionUIContext, turn: ZaloTurn): ExtensionUIContext {
   // pi's ExtensionRunner.setUIContext() wraps the UI via `{ ...ui }` spread
   // (wrapUIPromptContext). A bare `get`-trap proxy has no own enumerable keys,
   // so the spread flattened it to just the 5 re-created dialog methods and
   // dropped notify/setStatus/… — making /zalo and other commands invoked from
-  // chat silently no-op. Expose the routed methods as own enumerable
-  // properties so the spread captures them.
+  // chat silently no-op. Expose own enumerable methods that choose their
+  // target at call time, so local notifications during a Zalo dialog stay local.
   const routedKeys = [...new Set([...Reflect.ownKeys(zaloUi), ...Reflect.ownKeys((baseUi ?? {}) as object)])].filter(
     (key): key is string => typeof key === "string",
   );
   return new Proxy({}, {
-    get(_target, prop, receiver) {
+    get(_target, prop) {
       if (prop === "__piZaloPlusRoutedUi") return true;
-      const currentTurn = getCurrentZaloTurn();
-      const target = isSameZaloTurnTarget(currentTurn, turn) ? zaloUi : baseUi;
-      const value = Reflect.get((target ?? {}) as object, prop, receiver);
-      return typeof value === "function" ? value.bind(target) : value;
+      const target = isSameZaloTurnTarget(getCurrentZaloTurn(), turn) ? zaloUi : baseUi;
+      const value = Reflect.get(target, prop);
+      if (typeof value !== "function") return value;
+      return (...args: unknown[]) => {
+        const target = isSameZaloTurnTarget(getCurrentZaloTurn(), turn) ? zaloUi : baseUi;
+        const method = Reflect.get(target, prop);
+        if (typeof method === "function") return Reflect.apply(method, target, args);
+      };
     },
     set(_target, prop, value, receiver) {
       const currentTurn = getCurrentZaloTurn();
@@ -101,7 +105,7 @@ function pushZaloUiContext(
 ): () => void {
   let state = zaloUiStacks.get(runner as object);
   if (!state) {
-    state = { baseUi: runner.getUIContext(), baseMode: getRunnerMode(runner as never), entries: [] };
+    state = { baseUi: runner.getUIContext(), baseMode: runner.createContext().mode, entries: [] };
     zaloUiStacks.set(runner as object, state);
   }
   const previousUi = state.entries.at(-1)?.routedUi ?? state.baseUi;
@@ -111,7 +115,7 @@ function pushZaloUiContext(
     routedUi: createRoutedZaloUi(previousUi, ui, turn),
   };
   state.entries.push(entry);
-  setRunnerUiContext(runner as never, entry.routedUi, ZALO_EXTENSION_MODE);
+  runner.setUIContext(entry.routedUi, "rpc");
 
   return () => {
     const current = zaloUiStacks.get(runner as object);
@@ -122,8 +126,8 @@ function pushZaloUiContext(
     current.entries.splice(idx, 1);
     if (wasTop) {
       const next = current.entries.at(-1);
-      if (next) setRunnerUiContext(runner as never, next.routedUi, ZALO_EXTENSION_MODE);
-      else setRunnerUiContext(runner as never, current.baseUi, current.baseMode);
+      if (next) runner.setUIContext(next.routedUi, "rpc");
+      else runner.setUIContext(current.baseUi, current.baseMode);
     }
     if (current.entries.length === 0) zaloUiStacks.delete(runner as object);
   };
@@ -182,8 +186,7 @@ export function createZaloController(deps: {
     }
     bumpInterruptGeneration(chatId);
     await deps.transport.sendText(chatId, "⏹️ Interrupt requested.", { replyToMessageId: sourceMessageId });
-    const abortResult = (session as unknown as { abort?: () => Promise<void> }).abort?.();
-    void abortResult?.catch?.(() => undefined);
+    void session.abort().catch(ctrlLog.swallow("warn", "session abort failed", { chatId }));
   };
 
   const reportPromptFailure = async (label: string, chatId: string, sourceMessageId: string | undefined, err: unknown) => {
@@ -298,20 +301,14 @@ export function createZaloController(deps: {
         // base runner UI and /zalo commands fail with "ctx.ui.notify is not a
         // function" when invoked from Zalo.
         const ctx = session.extensionRunner.createCommandContext();
-        const idleFn = typeof (ctx as unknown as { isIdle?: () => boolean }).isIdle === "function"
-          ? (ctx as unknown as { isIdle: () => boolean }).isIdle
-          : undefined;
-        const waitFn = typeof (ctx as unknown as { waitForIdle?: () => Promise<void> }).waitForIdle === "function"
-          ? (ctx as unknown as { waitForIdle: () => Promise<void> }).waitForIdle
-          : undefined;
-        const wasIdle = idleFn ? idleFn.call(ctx) : false;
+        const wasIdle = ctx.isIdle();
         await handler(args, ctx);
-        if (!wasIdle || !idleFn || !waitFn) return;
+        if (!wasIdle) return;
         try {
           for (;;) {
-            await waitFn.call(ctx);
+            await ctx.waitForIdle();
             await new Promise((r) => setTimeout(r, 120));
-            if (idleFn.call(ctx)) break;
+            if (ctx.isIdle()) break;
           }
         } catch (err) {
           ctrlLog.debug("waitForIdle during enqueued turn interrupted", { err });

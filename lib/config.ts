@@ -8,11 +8,12 @@
 import { randomInt } from "node:crypto";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { homedir } from "node:os";
+import { getAgentDir as getPiAgentDir } from "@earendil-works/pi-coding-agent";
 import type { ZaloConfig } from "./types.ts";
 
 export function getAgentDir(): string {
-  return process.env.PI_AGENT_DIR ?? join(homedir(), ".pi", "agent");
+  // Preserve the extension's legacy override; otherwise use Pi's own profile.
+  return process.env.PI_AGENT_DIR ?? getPiAgentDir();
 }
 
 export function getZaloStatePath(): string {

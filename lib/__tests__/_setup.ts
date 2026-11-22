@@ -2,6 +2,8 @@
 //
 // Provides shared test utilities and mocks for pi extension API types.
 
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { vi } from "vitest";
 
 // Mock the pi coding agent module for tests that import it.
@@ -25,6 +27,7 @@ vi.mock("@earendil-works/pi-coding-agent", () => {
   (MockSessionManager.prototype as unknown as Record<string, unknown>).setSessionName = vi.fn();
 
   return {
+    getAgentDir: () => process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent"),
     AgentSession: MockAgentSession,
     SessionManager: MockSessionManager,
   };

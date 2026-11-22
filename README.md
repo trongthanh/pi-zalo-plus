@@ -15,6 +15,13 @@
 
 ## Setup
 
+This version has been tested with Pi **1.5.0–1.5.2** and **1.6.0** and requires
+Node.js **22.19 or newer**. Existing `zalo.json` files and pairings work without
+conversion. If you start Pi with
+`PI_CODING_AGENT_DIR`, the extension uses that profile's `zalo.json` by default;
+copy your existing file there if it still lives in `~/.pi/agent`. The legacy
+`PI_AGENT_DIR` override still takes precedence for Zalo state.
+
 1. Create a bot at [bot.zaloplatforms.com](https://bot.zaloplatforms.com/docs/create-bot/)
    and save its token to `~/.pi/agent/zalo.json` (this single file also holds the
    extension state):
@@ -217,6 +224,12 @@ unpair, or reset the update offset so undelivered updates are replayed.
   `bot-api.zaloplatforms.com` serves getMe/sendMessage but its getUpdates stays
   empty, which makes the bot look deaf while outbound still works. The extension
   defaults to `zapps.me` (override with `PI_ZALO_API_ROOT`).
+
+## Development
+
+Run `npm ci`, `npm run typecheck`, and `npm test`. Run `npm run test:pi` for a
+smoke test against the real Pi runtime with a local mock Zalo API, no bot token
+or model credentials needed.
 
 ## Thanks
 

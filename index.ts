@@ -10,6 +10,7 @@
 //   lib/__tests__/      — test suite
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { CommandRegistry } from "./lib/commands/register.ts";
 import { ensurePairingCode, isZaloEnabled, migrateLegacyTokenFile, readZaloConfig, writeZaloConfig } from "./lib/config.ts";
 import { createZaloController } from "./lib/controller.ts";
 import type { ZaloCommandHandler } from "./lib/types.ts";
@@ -38,7 +39,7 @@ import { registerZaloConfigCommands } from "./lib/commands/zalo-config.ts";
 const indexLog = log.child("index");
 
 type ZaloPlusRuntimeState = {
-  dispose?: () => void;
+  dispose?: () => Promise<void>;
 };
 
 const ZALO_PLUS_RUNTIME_STATE = Symbol.for("pi-zalo-plus.runtime-state");
@@ -50,9 +51,7 @@ function getZaloPlusRuntimeState(): ZaloPlusRuntimeState {
 }
 
 /** Minimal TUI-compatible command registry backed by pi.registerCommand. */
-function createTuiCommandRegistry(pi: ExtensionAPI): {
-  registerCommand: (name: string, options: { description?: string; handler: (args: string, ctx: any) => Promise<void> }) => void;
-} {
+function createTuiCommandRegistry(pi: ExtensionAPI): CommandRegistry {
   return {
     registerCommand(name, options) {
       pi.registerCommand(name, {
@@ -63,11 +62,11 @@ function createTuiCommandRegistry(pi: ExtensionAPI): {
   };
 }
 
-export default function piZaloPlus(pi: ExtensionAPI): void {
+export default async function piZaloPlus(pi: ExtensionAPI): Promise<void> {
   installAgentSessionCapture();
   initLogger({ level: "info" });
   const runtimeState = getZaloPlusRuntimeState();
-  runtimeState.dispose?.();
+  if (runtimeState.dispose) await runtimeState.dispose();
 
   let config: ZaloConfig = {};
   let configRevision = 0;
@@ -306,14 +305,16 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
-  function disposeRuntime(): void {
-    if (disposed) return;
+  let disposal: Promise<void> | undefined;
+  function disposeRuntime(): Promise<void> {
+    if (disposal) return disposal;
     disposed = true;
+    disposal = polling.stop();
     heartbeat.dispose();
-    void polling.stop();
     activeTurns.clear();
     ui.dispose();
     clearStatus();
+    return disposal;
   }
 
   runtimeState.dispose = disposeRuntime;
@@ -351,8 +352,9 @@ export default function piZaloPlus(pi: ExtensionAPI): void {
     refreshStatus();
   });
 
-  pi.on("session_shutdown", () => {
-    disposeRuntime();
+  pi.on("session_shutdown", async () => {
+    // Release the polling lock before Pi starts the replacement runtime.
+    await disposeRuntime();
     if (runtimeState.dispose === disposeRuntime) runtimeState.dispose = undefined;
   });
 }

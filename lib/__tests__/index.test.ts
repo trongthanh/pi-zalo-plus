@@ -39,7 +39,7 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-let shutdown: (() => void) | undefined;
+let shutdown: (() => Promise<void>) | undefined;
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(readZaloConfig).mockResolvedValue({ ...saved });
@@ -51,7 +51,7 @@ beforeEach(() => {
     isActive: () => true,
   });
 });
-afterEach(() => { shutdown?.(); shutdown = undefined; });
+afterEach(async () => { await shutdown?.(); shutdown = undefined; });
 
 async function setup() {
   const hooks = new Map<string, (...args: any[]) => any>();
@@ -62,8 +62,8 @@ async function setup() {
       commands.set(name, options);
     },
   } as unknown as ExtensionAPI;
-  piZaloPlus(pi);
-  shutdown = () => hooks.get("session_shutdown")?.();
+  await piZaloPlus(pi);
+  shutdown = () => hooks.get("session_shutdown")!();
   await hooks.get("session_start")!();
   const pollingDeps = vi.mocked(createZaloPollingRuntime).mock.calls[0][0];
   return {
